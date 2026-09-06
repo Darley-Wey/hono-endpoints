@@ -1,6 +1,8 @@
 .gradle/
+.kotlin/
 build/
 out/
 .idea/
+.intellijPlatform/
 *.iml
 .DS_Store

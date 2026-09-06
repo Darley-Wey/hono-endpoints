@@ -25,5 +25,5 @@ jobs:
         with:
           gradle-version: '9.7.0'
 
-      - name: Build and test
-        run: gradle build
+      - name: Build, test, and package plugin
+        run: gradle build buildPlugin verifyPluginProjectConfiguration

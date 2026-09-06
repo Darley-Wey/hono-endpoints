@@ -1,16 +1,18 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
-    java
+    kotlin("jvm")
     id("org.jetbrains.intellij.platform")
 }
 
 group = "io.github.darleywey"
 version = providers.gradleProperty("pluginVersion").get()
 
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(25)
+kotlin {
+    jvmToolchain(25)
+    compilerOptions {
+        jvmTarget = JvmTarget.JVM_25
     }
 }
 
@@ -21,7 +23,7 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
     }
 
-    testImplementation("org.junit.jupiter:junit-jupiter:5.13.4")
+    testImplementation("junit:junit:4.13.2")
 }
 
 intellijPlatform {
@@ -49,6 +51,6 @@ intellijPlatform {
 
 tasks {
     test {
-        useJUnitPlatform()
+        useJUnit()
     }
 }

@@ -12,7 +12,7 @@ import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.ProjectScope
 import com.intellij.psi.search.PsiSearchHelper
 import com.intellij.psi.search.UsageSearchContext
 import com.intellij.psi.util.CachedValue
@@ -47,11 +47,11 @@ object HonoFrameworkDetector {
         val fileIndex = ProjectRootManager.getInstance(project).fileIndex
         // This index hit is an availability hint only; the analyzer still proves constructor origin.
         return !PsiSearchHelper.getInstance(project).processCandidateFilesForText(
-            GlobalSearchScope.projectScope(project), UsageSearchContext.IN_STRINGS, true, "hono",
+            ProjectScope.getContentScope(project), UsageSearchContext.IN_STRINGS, true, "hono",
         ) { file ->
             ProgressManager.checkCanceled()
             val candidate = file.extension in HonoSymbols.SOURCE_EXTENSIONS &&
-                fileIndex.isInContent(file) && !fileIndex.isInLibrary(file) && "/node_modules/" !in file.path
+                fileIndex.isInContent(file) && !fileIndex.isExcluded(file) && "/node_modules/" !in file.path
             !candidate
         }
     }
@@ -66,9 +66,9 @@ object HonoFrameworkDetector {
         val psiManager = PsiManager.getInstance(project)
         var present = false
 
-        for (file in FilenameIndex.getVirtualFilesByName("package.json", GlobalSearchScope.projectScope(project))) {
+        for (file in FilenameIndex.getVirtualFilesByName("package.json", ProjectScope.getContentScope(project))) {
             ProgressManager.checkCanceled()
-            if (!fileIndex.isInContent(file) || fileIndex.isInLibrary(file) || "/node_modules/" in file.path) {
+            if (!fileIndex.isInContent(file) || fileIndex.isExcluded(file) || "/node_modules/" in file.path) {
                 continue
             }
             val manifest = psiManager.findFile(file) ?: continue

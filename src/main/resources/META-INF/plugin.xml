@@ -14,4 +14,11 @@
     <extensions defaultExtensionNs="com.intellij">
         <microservices.endpointsProvider implementation="io.github.darleywey.honoendpoints.endpoints.HonoEndpointsProvider"/>
     </extensions>
+
+    <actions>
+        <action id="io.github.darleywey.honoendpoints.diagnostics.CopyFileDiagnostics"
+                class="io.github.darleywey.honoendpoints.diagnostics.CopyHonoFileDiagnosticsAction"
+                text="Copy Hono File Diagnostics"
+                description="Copy the current file's index flags and route counts without source text"/>
+    </actions>
 </idea-plugin>

@@ -1,7 +1,10 @@
 package io.github.darleywey.honoendpoints.project
 
 import com.intellij.microservices.endpoints.EndpointsProvider
+import com.intellij.microservices.endpoints.ExternalEndpointsFilter
 import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.roots.ModuleRootManager
+import com.intellij.openapi.roots.ProjectRootManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiFile
 import com.intellij.testFramework.DumbModeTestUtils
@@ -105,6 +108,94 @@ class HonoProjectModelTest : BasePlatformTestCase() {
             assertEmpty(HonoProjectModel.endpointGroups(project))
         }
         assertSize(1, HonoProjectModel.endpointGroups(project))
+    }
+
+    fun testProjectRoutesAlsoMarkedAsLibrarySourcesAreIncluded() {
+        assertOverlappingLibraryDoesNotHideRoutes(false)
+    }
+
+    fun testProjectRoutesAlsoMarkedAsLibraryClassesAreIncluded() {
+        assertOverlappingLibraryDoesNotHideRoutes(true)
+    }
+
+    fun testContentOnlyProjectRoutesAlsoMarkedAsLibrarySourcesAreIncluded() {
+        assertOverlappingLibraryDoesNotHideRoutes(false, true)
+    }
+
+    fun testContentOnlyProjectRoutesAlsoMarkedAsLibraryClassesAreIncluded() {
+        assertOverlappingLibraryDoesNotHideRoutes(true, true)
+    }
+
+    fun testFrameworkProbesKeepProjectFilesAlsoMarkedAsLibraries() {
+        val manifest = myFixture.addFileToProject("backend/package.json", MANIFEST)
+        val source = myFixture.addFileToProject("backend/app.mts", "export const value = 42")
+        val sourceRoots = ModuleRootManager.getInstance(module).sourceRoots.toList()
+        sourceRoots.forEach { PsiTestUtil.removeSourceRoot(module, it) }
+        val library = PsiTestUtil.addProjectLibrary(
+            module, "ts-external-references", listOf(manifest.virtualFile.parent), emptyList(),
+        )
+        try {
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            assertTrue(HonoFrameworkDetector.isPresent(project))
+            WriteCommandAction.runWriteCommandAction(project) { manifest.delete() }
+            replaceText(source, SOURCE)
+            assertTrue(HonoFrameworkDetector.isPresent(project))
+            assertSize(1, HonoProjectModel.endpointGroups(project))
+        } finally {
+            PsiTestUtil.removeLibrary(module, library)
+            sourceRoots.forEach { PsiTestUtil.addSourceRoot(module, it) }
+        }
+    }
+
+    private fun assertOverlappingLibraryDoesNotHideRoutes(asClasses: Boolean, withoutSourceRoots: Boolean = false) {
+        val backend = myFixture.addFileToProject("backend/src/app.mts", SOURCE)
+        val cloud = myFixture.addFileToProject("cloudfunctions/app.js", """
+            const { Hono } = require('hono')
+            new Hono().get('/cloud', handler)
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        assertSize(2, HonoProjectModel.endpointGroups(project))
+        val sourceRoots = if (withoutSourceRoots) {
+            ModuleRootManager.getInstance(module).sourceRoots.toList()
+        } else {
+            emptyList()
+        }
+        sourceRoots.forEach { PsiTestUtil.removeSourceRoot(module, it) }
+        val roots = listOf(backend.virtualFile.parent)
+        val library = PsiTestUtil.addProjectLibrary(
+            module, "ts-external-references",
+            if (asClasses) roots else emptyList(),
+            if (asClasses) emptyList() else roots,
+        )
+        try {
+            IndexingTestUtil.waitUntilIndexesAreReady(project)
+            val index = ProjectRootManager.getInstance(project).fileIndex
+            assertTrue(index.isInContent(backend.virtualFile))
+            assertTrue(index.isInLibrary(backend.virtualFile))
+            assertEquals(
+                setOf(backend.virtualFile, cloud.virtualFile),
+                HonoProjectModel.endpointGroups(project).map { it.file.virtualFile }.toSet(),
+            )
+            val provider = HonoEndpointsProvider()
+            assertEquals(
+                setOf(backend.virtualFile, cloud.virtualFile),
+                provider.getEndpointGroups(project, ExternalEndpointsFilter)
+                    .map { it.file.virtualFile }.toSet(),
+            )
+            PsiTestUtil.addExcludedRoot(module, backend.virtualFile.parent)
+            try {
+                IndexingTestUtil.waitUntilIndexesAreReady(project)
+                assertEquals(
+                    listOf(cloud.virtualFile),
+                    HonoProjectModel.endpointGroups(project).map { it.file.virtualFile },
+                )
+            } finally {
+                PsiTestUtil.removeExcludedRoot(module, backend.virtualFile.parent)
+            }
+        } finally {
+            PsiTestUtil.removeLibrary(module, library)
+            sourceRoots.forEach { PsiTestUtil.addSourceRoot(module, it) }
+        }
     }
 
     private fun replaceText(file: PsiFile, text: String) {

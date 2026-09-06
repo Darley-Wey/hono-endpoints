@@ -15,7 +15,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
-import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.ProjectScope
 import io.github.darleywey.honoendpoints.framework.HonoSymbols
 import io.github.darleywey.honoendpoints.model.HonoEndpoint
 import io.github.darleywey.honoendpoints.model.HonoEndpointGroup
@@ -30,13 +30,14 @@ object HonoProjectScanner {
         if (project.isDisposed || DumbService.isDumb(project)) return emptyList()
         val groups = mutableListOf<HonoEndpointGroup>()
         val psiManager = PsiManager.getInstance(project)
-        val scope = GlobalSearchScope.projectScope(project)
+        // Project files may also be indexed as TypeScript library roots.
+        val scope = ProjectScope.getContentScope(project)
         val fileIndex = ProjectRootManager.getInstance(project).fileIndex
 
         for (extension in HonoSymbols.SOURCE_EXTENSIONS) {
             for (file in FilenameIndex.getAllFilesByExt(project, extension, scope)) {
                 ProgressManager.checkCanceled()
-                if (!fileIndex.isInContent(file) || fileIndex.isInLibrary(file) || "/node_modules/" in file.path) {
+                if (!fileIndex.isInContent(file) || fileIndex.isExcluded(file) || "/node_modules/" in file.path) {
                     continue
                 }
                 val psiFile = psiManager.findFile(file) ?: continue

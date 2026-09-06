@@ -5,6 +5,7 @@ import com.intellij.microservices.endpoints.HTTP_SERVER_TYPE
 import com.intellij.microservices.endpoints.EndpointsFilter
 import com.intellij.microservices.endpoints.EndpointsProvider
 import com.intellij.microservices.endpoints.FrameworkPresentation
+import com.intellij.microservices.endpoints.SearchScopeEndpointsFilter
 import com.intellij.microservices.endpoints.presentation.HttpMethodPresentation
 import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.project.DumbService
@@ -29,8 +30,14 @@ class HonoEndpointsProvider : EndpointsProvider<HonoEndpointGroup, HonoEndpoint>
         else -> EndpointsProvider.Status.UNAVAILABLE
     }
 
-    override fun getEndpointGroups(project: Project, filter: EndpointsFilter): Iterable<HonoEndpointGroup> =
-        HonoProjectModel.endpointGroups(project)
+    override fun getEndpointGroups(project: Project, filter: EndpointsFilter): Iterable<HonoEndpointGroup> {
+        val groups = HonoProjectModel.endpointGroups(project)
+        return if (filter is SearchScopeEndpointsFilter) {
+            groups.filter { group -> group.file.virtualFile?.let(filter.contentSearchScope::contains) == true }
+        } else {
+            groups
+        }
+    }
 
     override fun getEndpoints(group: HonoEndpointGroup): Iterable<HonoEndpoint> = group.endpoints
 

@@ -186,6 +186,42 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
         assertEquals("app.get('/users/:id', handler)", endpoints.first().source.text)
     }
 
+    fun testParentRoutesAfterMountingChild() = assertRoutes(
+        """
+        import { Hono } from 'hono'
+        const child = new Hono()
+        const documented = new Hono().route('/child', child)
+        const app = documented.route('/', anotherChild)
+        app.get('/', handler)
+        app.get('/json', handler)
+        """.trimIndent(),
+        "GET /", "GET /json",
+    )
+
+    fun testParentRouteDoesNotInheritMountPrefix() = assertRoutes(
+        """
+        import { Hono } from 'hono'
+        new Hono().route('/child', child).get('/health', handler)
+        new Hono().basePath('/api').route('/child', child).get('/hidden', handler)
+        """.trimIndent(),
+        "GET /health",
+    )
+
+    fun testMtsMiddlewareChainWithReexportedDependency() {
+        myFixture.addFileToProject("node_modules/hono/package.json", """
+            { "name": "hono", "exports": { ".": { "types": "./dist/types/index.d.ts" } } }
+        """.trimIndent())
+        myFixture.addFileToProject("node_modules/hono/dist/types/index.d.ts", "export { Hono } from './hono.js'")
+        myFixture.addFileToProject("node_modules/hono/dist/types/hono.d.ts", "export declare class Hono {}")
+        val file = myFixture.configureByText("app.mts", """
+            import { Hono, type Context } from 'hono'
+            export const app = new Hono()
+                .use('*', middleware)
+                .post('/api/items', (c: Context) => c.json({ ok: true }))
+        """.trimIndent())
+        assertEquals(listOf("POST /api/items"), describe(HonoProjectScanner.scanFile(file)))
+    }
+
     private fun assertRoutes(source: String, vararg expected: String) {
         val file = myFixture.configureByText("app.ts", source)
         assertEquals(expected.toList(), describe(HonoProjectScanner.scanFile(file)))

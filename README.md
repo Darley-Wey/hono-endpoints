@@ -13,8 +13,9 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Recognizes Hono dependencies in workspace `package.json` files and direct imports in source-only projects
 - Discovers `get`, `post`, `put`, `patch`, `delete`, `options`, and `head` with static string-literal paths
 - Resolves named Hono imports and aliases through JavaScript/TypeScript PSI, including `import { Hono as App }`
+- Supports CommonJS destructuring, including `const { Hono: App } = require('hono')`, while rejecting shadowed `require` calls
 - Rejects shadowed constructors, unrelated imports, type-only imports, and unsupported default imports
-- Supports local router aliases and chains such as `new Hono().get(...).post(...)`
+- Supports local router aliases, method chains, and ordinary parent routes after `.route(prefix, child)`
 - Caches project results until PSI, project roots, file structure, or indexing state changes
 - Excludes dependency/library sources and defers analysis during indexing
 - Navigates from an endpoint back to the route call in source
@@ -33,9 +34,9 @@ app.get('/users/:id', getUser)
 
 ### Current limitations
 
-This is a **local route scanner**, not yet a composed route graph. Receiver resolution stops at `basePath()`, `route()`, and `mount()` calls. For example, `new Hono().basePath('/api').get('/users', handler)` is omitted rather than incorrectly reported as `/users`.
+This is a **local route scanner**, not yet a composed route graph. Receiver resolution stops at `basePath()` and `mount()` calls. For example, `new Hono().basePath('/api').get('/users', handler)` is omitted rather than incorrectly reported as `/users`.
 
-`route()` and `mount()` do not themselves change the prefix of later calls on the parent app; stopping at them is a conservative bootstrap restriction. Routes declared separately on a child app are still local definitions, not resolved mount contexts. Do not rely on this version for effective URLs in composed applications.
+`route(prefix, child)` returns the parent app, so subsequent parent routes are discovered without inheriting the mount prefix. Routes declared separately on a child app are still local definitions, not resolved mount contexts. Do not rely on this version for effective URLs of mounted child applications.
 
 Cross-file routers, constant path evaluation, `all()` / `on()` discovery, and validator/schema metadata are not implemented. Caching is project-wide; file-level incremental analysis is a later milestone.
 
@@ -101,7 +102,15 @@ Launch the development IDE:
 gradle runIde
 ```
 
-Tests cover import/variable aliases, shadowing, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, source-only projects, and recovery after indexing. Interactive Endpoints double-click/F4 behavior still requires a manual IDE smoke test.
+Tests cover ESM/CommonJS import aliases, shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots and SDK scope filters.
+
+For interactive verification, open [examples/smoke](examples/smoke) in WebStorm; its README lists the three expected paths and navigation checks. This is separate from automated PSI/provider tests.
+
+To test against an installed IDE instead of downloading the default SDK:
+
+```bash
+gradle test -PlocalIdePath=/path/to/WebStorm.app
+```
 
 ## License
 

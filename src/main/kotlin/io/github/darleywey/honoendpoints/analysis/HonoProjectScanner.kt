@@ -1,9 +1,5 @@
 package io.github.darleywey.honoendpoints.analysis
 
-import com.intellij.lang.ecmascript6.psi.ES6ImportExportDeclaration.ImportExportPrefixKind
-import com.intellij.lang.ecmascript6.psi.ES6ImportExportSpecifier.ImportExportSpecifierKind
-import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
-import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifierAlias
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSExpression
 import com.intellij.lang.javascript.psi.JSLiteralExpression
@@ -79,33 +75,18 @@ object HonoProjectScanner {
         ProgressManager.checkCanceled()
         if (expression == null || !visited.add(expression)) return false
         return when (expression) {
-            is JSNewExpression -> isHonoConstructor(expression.methodExpression)
+            is JSNewExpression -> HonoConstructorResolver.isHonoConstructor(expression.methodExpression)
             is JSReferenceExpression -> {
                 val variable = expression.resolve() as? JSVariable ?: return false
                 visited.add(variable) && isHonoRouterExpression(variable.initializer, visited)
             }
             is JSCallExpression -> {
                 val reference = expression.methodExpression as? JSReferenceExpression ?: return false
+                if (reference.referenceName == "route" && expression.arguments.size < 2) return false
                 HonoSymbols.isTransparentChainMethod(reference.referenceName) &&
                     isHonoRouterExpression(reference.qualifier, visited)
             }
             else -> false
         }
-    }
-
-    private fun isHonoConstructor(constructor: JSExpression?): Boolean {
-        val resolved = (constructor as? JSReferenceExpression)?.resolve()
-        val specifier = when (resolved) {
-            is ES6ImportSpecifier -> resolved
-            is ES6ImportSpecifierAlias -> resolved.findSpecifierElement() as? ES6ImportSpecifier
-            else -> null
-        } ?: return false
-        if (specifier.referenceName != "Hono" || specifier.specifierKind != ImportExportSpecifierKind.IMPORT) {
-            return false
-        }
-        val declaration = specifier.declaration ?: return false
-        if (declaration.importExportPrefixKind != ImportExportPrefixKind.IMPORT) return false
-        val fromClause = declaration.fromClause ?: return false
-        return HonoSymbols.isHonoModule(HonoSymbols.unquote(fromClause.referenceText))
     }
 }

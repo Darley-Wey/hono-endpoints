@@ -21,7 +21,7 @@ class HonoSymbolsTest : TestCase() {
 
     fun testCompositionMethodsAreNotFollowedYet() {
         assertFalse(HonoSymbols.isTransparentChainMethod("basePath"))
-        assertFalse(HonoSymbols.isTransparentChainMethod("route"))
+        assertTrue(HonoSymbols.isTransparentChainMethod("route"))
         assertFalse(HonoSymbols.isTransparentChainMethod("mount"))
     }
 

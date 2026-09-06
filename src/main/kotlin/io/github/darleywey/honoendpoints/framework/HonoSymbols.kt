@@ -3,16 +3,16 @@ package io.github.darleywey.honoendpoints.framework
 /**
  * Framework-level Hono facts that do not depend on PSI.
  *
- * Composition methods are deliberately not followed by the bootstrap scanner.
- * In particular, basePath changes the prefix of subsequent routes. Resolving composed
- * paths requires the future route graph; external framework mounts remain out of scope.
+ * basePath changes the prefix of subsequent routes and remains a barrier until the
+ * route graph can resolve it. route(prefix, child) returns the unchanged parent app;
+ * its prefix must not be applied to later routes on that parent.
  */
 object HonoSymbols {
     val SOURCE_EXTENSIONS = setOf("js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts")
     val HTTP_METHODS = setOf("get", "post", "put", "patch", "delete", "options", "head")
 
     /** Supported methods that leave the prefix of subsequent routes unchanged. */
-    val TRANSPARENT_CHAIN_METHODS = HTTP_METHODS + setOf("all", "on", "use", "notFound", "onError")
+    val TRANSPARENT_CHAIN_METHODS = HTTP_METHODS + setOf("all", "on", "route", "use", "notFound", "onError")
 
     fun isHonoModule(specifier: String?): Boolean = specifier != null && (
         specifier == "hono" || specifier.startsWith("hono/") ||

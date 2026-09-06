@@ -18,7 +18,12 @@ kotlin {
 
 dependencies {
     intellijPlatform {
-        webstorm("2026.2.0.1")
+        val localIdePath = providers.gradleProperty("localIdePath")
+        if (localIdePath.isPresent) {
+            local(localIdePath.get())
+        } else {
+            webstorm("2026.2.0.1")
+        }
         bundledPlugin("JavaScript")
         testFramework(TestFrameworkType.Platform)
     }

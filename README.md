@@ -14,13 +14,13 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Discovers `get`, `post`, `put`, `patch`, `delete`, `options`, and `head` with static string-literal paths
 - Resolves named Hono imports and aliases through JavaScript/TypeScript PSI, including `import { Hono as App }`
 - Recovers scoped value-import bindings when TypeScript resolves a constructor directly to its class declaration, with or without import provenance
+- Navigates to each route's path string and keeps the complete call for documentation
 - Supports CommonJS destructuring, including `const { Hono: App } = require('hono')`, while rejecting shadowed `require` calls
 - Rejects shadowed constructors, unrelated imports, type-only imports, and unsupported default imports
 - Supports local router aliases, method chains, and ordinary parent routes after `.route(prefix, child)`
 - Caches project results until PSI, project roots, file structure, or indexing state changes
 - Excludes dependency and explicitly excluded sources, but keeps project files also indexed as TypeScript library roots
 - Defers analysis during indexing
-- Navigates from an endpoint back to the route call in source
 
 Example currently supported:
 
@@ -105,7 +105,7 @@ Launch the development IDE:
 gradle runIde
 ```
 
-Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, and real PSI references seeded with class-target results in the SDK's JavaScript resolution cache.
+Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements.
 
 For interactive verification, open [examples/smoke](examples/smoke) in WebStorm; its README lists the three expected paths and navigation checks. This is separate from automated PSI/provider tests.
 
@@ -119,7 +119,7 @@ gradle test -PlocalIdePath=/path/to/WebStorm.app
 
 Project files can also belong to JavaScript/TypeScript library roots. Discovery uses the project **content** scope and does not reject a file just because it has a library flag. Explicitly excluded directories, dependency-only roots, and `node_modules` remain excluded.
 
-If an expected file is still missing, open it in the editor and use **Find Action → Copy Hono File Diagnostics**. The command copies its index flags, direct-analysis count, project-model count, constructor PSI kinds, resolve-result types, import provenance, and local binding kinds to the clipboard. It runs read-only in the background and does not copy source text or handler bodies. The report includes the file path, so review it before sharing.
+If an expected file is still missing, open it in the editor and use **Find Action → Copy Hono File Diagnostics**. The command copies its index flags, direct-analysis count, project-model count, constructor PSI kinds, resolve-result types, import provenance, local binding kinds, and navigation targets (method, PSI class, and source text-range offsets) to the clipboard. It runs read-only in the background and does not copy source text, handler bodies, or route strings. The report includes the file path, so review it before sharing.
 
 A `TypeScriptClassImpl` constructor target is supported: the analyzer recovers the original value-import binding through the SDK's lexical scope resolver. A class name or a same-name import elsewhere in the file is not sufficient evidence.
 

@@ -1,6 +1,7 @@
 package io.github.darleywey.honoendpoints.endpoints
 
 import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
+import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
@@ -120,7 +121,10 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
             assertTrue(provider.isValidEndpoint(group, endpoint))
             assertEquals(endpoint.path, provider.getEndpointPresentation(group, endpoint).presentableText)
             assertSame(file, provider.getNavigationElement(group, endpoint).containingFile)
-            assertSame(endpoint.source, provider.getNavigationElement(group, endpoint))
+            assertSame(endpoint.target, provider.getNavigationElement(group, endpoint))
+            assertTrue(provider.getNavigationElement(group, endpoint) is JSLiteralExpression)
+            assertEquals("'${endpoint.path}'", provider.getNavigationElement(group, endpoint).text)
+            assertSame(endpoint.source, provider.getDocumentationElement(group, endpoint))
         }
     }
 }

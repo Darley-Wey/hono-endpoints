@@ -42,7 +42,7 @@ class HonoEndpointsProvider : EndpointsProvider<HonoEndpointGroup, HonoEndpoint>
     override fun getEndpoints(group: HonoEndpointGroup): Iterable<HonoEndpoint> = group.endpoints
 
     override fun isValidEndpoint(group: HonoEndpointGroup, endpoint: HonoEndpoint): Boolean =
-        group.file.isValid && endpoint.source.isValid
+        group.file.isValid && endpoint.source.isValid && endpoint.target.isValid
 
     override fun getEndpointPresentation(group: HonoEndpointGroup, endpoint: HonoEndpoint): ItemPresentation =
         HttpMethodPresentation(endpoint.path, endpoint.method, group.file.name, null)
@@ -50,7 +50,7 @@ class HonoEndpointsProvider : EndpointsProvider<HonoEndpointGroup, HonoEndpoint>
     override fun getModificationTracker(project: Project): ModificationTracker =
         PsiModificationTracker.getInstance(project)
 
-    override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.source
+    override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.target
 
     override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.source
 }

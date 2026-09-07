@@ -16,6 +16,7 @@ import com.intellij.psi.search.ProjectScope
 import com.intellij.psi.util.PsiTreeUtil
 import io.github.darleywey.honoendpoints.analysis.HonoConstructorResolver
 import io.github.darleywey.honoendpoints.analysis.HonoProjectScanner
+import io.github.darleywey.honoendpoints.model.HonoEndpoint
 import io.github.darleywey.honoendpoints.project.HonoProjectModel
 import java.util.concurrent.CancellationException
 
@@ -42,7 +43,12 @@ internal object HonoFileDiagnostics {
             appendLine("PSI: ${psiFile?.javaClass?.simpleName}")
             if (psiFile == null) return@buildString
             appendLine("Language: ${psiFile.language.id}")
-            appendLine("File analysis routes: ${countOrError { HonoProjectScanner.scanFile(psiFile).size }}")
+            var endpoints = emptyList<HonoEndpoint>()
+            val fileCount = countOrError {
+                endpoints = HonoProjectScanner.scanFile(psiFile)
+                endpoints.size
+            }
+            appendLine("File analysis routes: $fileCount")
             appendLine("Project model routes in file: ${countOrError {
                 HonoProjectModel.endpointGroups(project).filter { it.file.virtualFile == file }.sumOf { it.endpoints.size }
             }}")
@@ -59,6 +65,11 @@ internal object HonoFileDiagnostics {
                 appendLine("    Resolve results: ${results.size}; result type: ${result?.javaClass?.simpleName ?: "none"}")
                 appendLine("    Import provenance: ${origin?.javaClass?.simpleName ?: "none"}")
                 appendLine("    Local binding: ${binding?.javaClass?.simpleName ?: "unresolved"}")
+            }
+            appendLine("Navigation targets (source order, up to 10):")
+            endpoints.take(10).forEachIndexed { ordinal, endpoint ->
+                appendLine("  #${ordinal + 1} ${endpoint.method}: source=${endpoint.source.javaClass.simpleName} ${endpoint.source.textRange}, " +
+                    "target=${endpoint.target.javaClass.simpleName} ${endpoint.target.textRange}, offset=${endpoint.target.textOffset}")
             }
         }
     }

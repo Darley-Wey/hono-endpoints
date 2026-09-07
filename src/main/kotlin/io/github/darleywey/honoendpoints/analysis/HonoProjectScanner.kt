@@ -65,7 +65,7 @@ object HonoProjectScanner {
                 val pathLiteral = call.arguments.firstOrNull() as? JSLiteralExpression ?: return
                 val path = pathLiteral.stringValue ?: return
                 if (path.startsWith("/")) {
-                    endpoints += HonoEndpoint(method.uppercase(Locale.ROOT), path, call)
+                    endpoints += HonoEndpoint(method.uppercase(Locale.ROOT), path, call, pathLiteral)
                 }
             }
         })

@@ -182,8 +182,71 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
         )
         val endpoints = HonoProjectScanner.scanFile(file)
         assertSize(1, endpoints)
-        assertSame(file, endpoints.first().source.containingFile)
-        assertEquals("app.get('/users/:id', handler)", endpoints.first().source.text)
+        val endpoint = endpoints.first()
+        assertSame(file, endpoint.source.containingFile)
+        assertEquals("app.get('/users/:id', handler)", endpoint.source.text)
+        assertEquals("'/users/:id'", endpoint.target.text)
+        assertSame(endpoint.source, endpoint.target.parent.parent)
+        assertEquals(endpoint.source.textRange.endOffset, endpoint.target.textRange.endOffset + ", handler)".length)
+    }
+
+    fun testNavigationTargetsPathLiteralAfterRouteMount() {
+        val file = myFixture.configureByText(
+            "app.ts",
+            """
+            import { Hono } from 'hono'
+            new Hono().route('/child', child).get('/health', handler)
+            """.trimIndent(),
+        )
+        val endpoints = HonoProjectScanner.scanFile(file)
+        assertSize(1, endpoints)
+        val endpoint = endpoints.first()
+        assertEquals("GET /health", "${endpoint.method} ${endpoint.path}")
+        assertEquals("'/health'", endpoint.target.text)
+        assertEquals("new Hono().route('/child', child).get('/health', handler)", endpoint.source.text)
+        assertTrue(endpoint.target.textRange.startOffset > endpoint.source.textRange.startOffset)
+        assertTrue(endpoint.target.textRange.endOffset < endpoint.source.textRange.endOffset)
+    }
+
+    fun testCompositionLayerRoutesPointAtTheirOwnPathLiterals() {
+        val file = myFixture.configureByText(
+            "app.mts",
+            """
+            import { Hono } from 'hono'
+            const documented = new Hono().route('/', firstChild).route('/', secondChild)
+            const app = documented.route('/', thirdChild)
+            app.get('/', health)
+            app.get('/json', json)
+            """.trimIndent(),
+        )
+        val endpoints = HonoProjectScanner.scanFile(file)
+        assertEquals(listOf("GET /", "GET /json"), describe(endpoints))
+        val health = endpoints.first { it.path == "/" && it.method == "GET" }
+        val json = endpoints.first { it.path == "/json" && it.method == "GET" }
+        assertEquals("'/'", health.target.text)
+        assertEquals("'/json'", json.target.text)
+        assertSame(file, health.target.containingFile)
+        assertSame(file, json.target.containingFile)
+        assertTrue(json.target.textRange.startOffset > health.target.textRange.endOffset)
+        assertEquals("app.get('/', health)", health.source.text)
+        assertEquals("app.get('/json', json)", json.source.text)
+    }
+
+    fun testNavigationTargetsPathLiteralAfterMiddlewareChain() {
+        val file = myFixture.configureByText(
+            "app.mts",
+            """
+            import { Hono } from 'hono'
+            new Hono()
+                .use('*', middleware)
+                .post('/api/items', handler)
+            """.trimIndent(),
+        )
+        val endpoints = HonoProjectScanner.scanFile(file)
+        assertSize(1, endpoints)
+        val endpoint = endpoints.first()
+        assertEquals("'/api/items'", endpoint.target.text)
+        assertTrue(endpoint.target.textRange.startOffset > endpoint.source.textRange.startOffset)
     }
 
     fun testParentRoutesAfterMountingChild() = assertRoutes(

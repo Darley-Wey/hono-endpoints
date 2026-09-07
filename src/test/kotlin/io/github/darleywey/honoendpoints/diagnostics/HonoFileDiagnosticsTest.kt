@@ -1,5 +1,6 @@
 package io.github.darleywey.honoendpoints.diagnostics
 
+import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
@@ -66,6 +67,25 @@ class HonoFileDiagnosticsTest : BasePlatformTestCase() {
         assertTrue(report.contains("Local binding: ES6ImportSpecifierImpl"))
         assertFalse(report.contains("do-not-copy-this-route"))
         assertFalse(report.contains("do-not-copy-this-body"))
+    }
+
+    fun testNavigationTargetsReportBoundedOffsetsWithoutRouteText() {
+        val routes = (1..12).joinToString("\n") { "app.get('/private-route-$it', handler)" }
+        val file = myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'\nconst app = new Hono()\n$routes")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val firstTarget = PsiTreeUtil.findChildrenOfType(file, JSLiteralExpression::class.java)
+            .single { it.stringValue == "/private-route-1" }
+        val report = HonoFileDiagnostics.collect(project, file.virtualFile)
+        assertTrue(report.contains("File analysis routes: 12"))
+        assertTrue(report.contains("Navigation targets (source order, up to 10):"))
+        val targetLines = report.lines().filter { it.startsWith("  #") }
+        assertSize(10, targetLines)
+        assertTrue(targetLines.first().startsWith("  #1 GET:"))
+        assertTrue(targetLines.first().contains("target=${firstTarget.javaClass.simpleName} ${firstTarget.textRange}"))
+        assertTrue(targetLines.first().contains("offset=${firstTarget.textOffset}"))
+        assertTrue(targetLines.last().startsWith("  #10 GET:"))
+        assertFalse(report.contains("private-route"))
+        assertFalse(report.contains("handler"))
     }
 
     fun testDiagnosticsDeferDuringIndexing() {

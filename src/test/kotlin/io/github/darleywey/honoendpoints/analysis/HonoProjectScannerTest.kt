@@ -96,7 +96,7 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
         """.trimIndent(),
     )
 
-    fun testSkipsRoutesAfterBasePath() = assertRoutes(
+    fun testBasePathAppliesToSubsequentRoutes() = assertRoutes(
         """
         import { Hono } from 'hono'
         new Hono().basePath('/api').get('/users', () => {})
@@ -104,6 +104,7 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
         const alias = api
         alias.post('/users', () => {})
         """.trimIndent(),
+        "GET /api/users", "POST /api/users",
     )
 
     fun testKeepsRoutesRegisteredBeforeBasePath() = assertRoutes(
@@ -114,7 +115,7 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
             .basePath('/api')
             .get('/users', () => {})
         """.trimIndent(),
-        "GET /health",
+        "GET /health", "GET /api/users",
     )
 
     fun testIgnoresUnknownRoutersAndDynamicPaths() = assertRoutes(
@@ -267,7 +268,7 @@ class HonoProjectScannerTest : BasePlatformTestCase() {
         new Hono().route('/child', child).get('/health', handler)
         new Hono().basePath('/api').route('/child', child).get('/hidden', handler)
         """.trimIndent(),
-        "GET /health",
+        "GET /health", "GET /api/hidden",
     )
 
     fun testMtsMiddlewareChainWithReexportedDependency() {

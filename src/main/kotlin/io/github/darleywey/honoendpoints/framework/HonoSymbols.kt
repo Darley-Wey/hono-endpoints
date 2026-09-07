@@ -3,9 +3,8 @@ package io.github.darleywey.honoendpoints.framework
 /**
  * Framework-level Hono facts that do not depend on PSI.
  *
- * basePath changes the prefix of subsequent routes and remains a barrier until the
- * route graph can resolve it. route(prefix, child) returns the unchanged parent app;
- * its prefix must not be applied to later routes on that parent.
+ * `basePath` returns a new view that shares the original route table. `route(prefix, child)`
+ * copies the child's then-registered routes onto the parent and returns the parent view.
  */
 object HonoSymbols {
     val SOURCE_EXTENSIONS = setOf("js", "jsx", "mjs", "cjs", "ts", "tsx", "mts", "cts")

@@ -19,7 +19,7 @@ class HonoSymbolsTest : TestCase() {
         assertFalse(HonoSymbols.isHonoModule("express"))
     }
 
-    fun testCompositionMethodsAreNotFollowedYet() {
+    fun testCompositionMethods() {
         assertFalse(HonoSymbols.isTransparentChainMethod("basePath"))
         assertTrue(HonoSymbols.isTransparentChainMethod("route"))
         assertFalse(HonoSymbols.isTransparentChainMethod("mount"))

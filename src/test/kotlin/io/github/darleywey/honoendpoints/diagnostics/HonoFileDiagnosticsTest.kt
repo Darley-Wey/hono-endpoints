@@ -29,6 +29,7 @@ class HonoFileDiagnosticsTest : BasePlatformTestCase() {
         assertTrue(report.contains("Found by filename index: true"))
         assertTrue(report.contains("File analysis routes: 1"))
         assertTrue(report.contains("Project model routes in file: 1"))
+        assertTrue(report.contains("Mounted routes in file: 0"))
         assertFalse(report.contains("do-not-copy-this-value"))
 
         PsiTestUtil.addExcludedRoot(module, file.virtualFile.parent)
@@ -61,6 +62,7 @@ class HonoFileDiagnosticsTest : BasePlatformTestCase() {
         val report = HonoFileDiagnostics.collect(project, file.virtualFile)
         assertTrue(report.contains("File analysis routes: 1"))
         assertTrue(report.contains("Project model routes in file: 1"))
+        assertTrue(report.contains("Mounted routes in file: 0"))
         assertTrue(report.contains("Hono: TypeScriptClassImpl, Hono=true"))
         assertTrue(report.contains("Resolve results: 1; result type: PsiElementResolveResult"))
         assertTrue(report.contains("Import provenance: none"))

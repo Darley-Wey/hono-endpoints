@@ -1,17 +1,9 @@
 package io.github.darleywey.honoendpoints.analysis
 
-import com.intellij.lang.javascript.psi.JSCallExpression
-import com.intellij.lang.javascript.psi.JSExpression
-import com.intellij.lang.javascript.psi.JSLiteralExpression
-import com.intellij.lang.javascript.psi.JSNewExpression
-import com.intellij.lang.javascript.psi.JSRecursiveWalkingElementVisitor
-import com.intellij.lang.javascript.psi.JSReferenceExpression
-import com.intellij.lang.javascript.psi.JSVariable
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.roots.ProjectRootManager
-import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
 import com.intellij.psi.search.FilenameIndex
@@ -19,75 +11,51 @@ import com.intellij.psi.search.ProjectScope
 import io.github.darleywey.honoendpoints.framework.HonoSymbols
 import io.github.darleywey.honoendpoints.model.HonoEndpoint
 import io.github.darleywey.honoendpoints.model.HonoEndpointGroup
-import java.util.Locale
 
 /**
- * Discovers static, local Hono routes through PSI references.
- * Composed route paths are left to the future route graph, not guessed from their local paths.
+ * Discovers Hono routes through PSI references and composes mounted child paths.
  */
 object HonoProjectScanner {
     fun scanProject(project: Project): List<HonoEndpointGroup> {
         if (project.isDisposed || DumbService.isDumb(project)) return emptyList()
-        val groups = mutableListOf<HonoEndpointGroup>()
+        val resolver = HonoRouterResolver()
+        val builder = HonoRouteGraphBuilder(resolver)
+        for (file in candidateFiles(project)) {
+            ProgressManager.checkCanceled()
+            builder.collect(file)
+        }
+        return builder.endpoints()
+            .groupBy { it.source.containingFile }
+            .map { (file, endpoints) ->
+                HonoEndpointGroup(file, endpoints.sortedBy { it.source.textRange.endOffset })
+            }
+            .sortedBy { it.file.virtualFile?.path.orEmpty() }
+    }
+
+    fun scanFile(file: PsiFile): List<HonoEndpoint> {
+        if (DumbService.isDumb(file.project)) return emptyList()
+        val resolver = HonoRouterResolver()
+        val builder = HonoRouteGraphBuilder(resolver)
+        builder.collect(file)
+        return builder.endpoints()
+            .filter { it.source.containingFile == file }
+            .sortedBy { it.source.textRange.endOffset }
+    }
+
+    private fun candidateFiles(project: Project): List<PsiFile> {
         val psiManager = PsiManager.getInstance(project)
-        // Project files may also be indexed as TypeScript library roots.
         val scope = ProjectScope.getContentScope(project)
         val fileIndex = ProjectRootManager.getInstance(project).fileIndex
-
+        val files = linkedSetOf<PsiFile>()
         for (extension in HonoSymbols.SOURCE_EXTENSIONS) {
             for (file in FilenameIndex.getAllFilesByExt(project, extension, scope)) {
                 ProgressManager.checkCanceled()
                 if (!fileIndex.isInContent(file) || fileIndex.isExcluded(file) || "/node_modules/" in file.path) {
                     continue
                 }
-                val psiFile = psiManager.findFile(file) ?: continue
-                val endpoints = scanFile(psiFile)
-                if (endpoints.isNotEmpty()) {
-                    groups += HonoEndpointGroup(psiFile, endpoints)
-                }
+                files += psiManager.findFile(file) ?: continue
             }
         }
-        return groups.toList()
-    }
-
-    fun scanFile(file: PsiFile): List<HonoEndpoint> {
-        if (DumbService.isDumb(file.project) || "hono" !in file.viewProvider.contents) return emptyList()
-        val endpoints = mutableListOf<HonoEndpoint>()
-        file.accept(object : JSRecursiveWalkingElementVisitor() {
-            override fun visitJSCallExpression(call: JSCallExpression) {
-                ProgressManager.checkCanceled()
-                super.visitJSCallExpression(call)
-
-                val methodReference = call.methodExpression as? JSReferenceExpression ?: return
-                val method = methodReference.referenceName ?: return
-                if (!HonoSymbols.isHttpMethod(method)) return
-                if (!isHonoRouterExpression(methodReference.qualifier, mutableSetOf())) return
-                val pathLiteral = call.arguments.firstOrNull() as? JSLiteralExpression ?: return
-                val path = pathLiteral.stringValue ?: return
-                if (path.startsWith("/")) {
-                    endpoints += HonoEndpoint(method.uppercase(Locale.ROOT), path, call, pathLiteral)
-                }
-            }
-        })
-        return endpoints.sortedBy { it.source.textRange.endOffset }
-    }
-
-    private fun isHonoRouterExpression(expression: JSExpression?, visited: MutableSet<PsiElement>): Boolean {
-        ProgressManager.checkCanceled()
-        if (expression == null || !visited.add(expression)) return false
-        return when (expression) {
-            is JSNewExpression -> HonoConstructorResolver.isHonoConstructor(expression.methodExpression)
-            is JSReferenceExpression -> {
-                val variable = expression.resolve() as? JSVariable ?: return false
-                visited.add(variable) && isHonoRouterExpression(variable.initializer, visited)
-            }
-            is JSCallExpression -> {
-                val reference = expression.methodExpression as? JSReferenceExpression ?: return false
-                if (reference.referenceName == "route" && expression.arguments.size < 2) return false
-                HonoSymbols.isTransparentChainMethod(reference.referenceName) &&
-                    isHonoRouterExpression(reference.qualifier, visited)
-            }
-            else -> false
-        }
+        return files.toList()
     }
 }

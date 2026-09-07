@@ -17,7 +17,8 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Navigates to each route's path string and keeps the complete call for documentation
 - Supports CommonJS destructuring, including `const { Hono: App } = require('hono')`, while rejecting shadowed `require` calls
 - Rejects shadowed constructors, unrelated imports, type-only imports, and unsupported default imports
-- Supports local router aliases, method chains, and ordinary parent routes after `.route(prefix, child)`
+- Supports local router aliases, method chains, and parent routes after `.route(prefix, child)`
+- Composes static `basePath()` and `.route()` prefixes, including nested and repeated mounts across files
 - Caches project results until PSI, project roots, file structure, or indexing state changes
 - Excludes dependency and explicitly excluded sources, but keeps project files also indexed as TypeScript library roots
 - Defers analysis during indexing
@@ -36,11 +37,9 @@ app.get('/users/:id', getUser)
 
 ### Current limitations
 
-This is a **local route scanner**, not yet a composed route graph. Receiver resolution stops at `basePath()` and `mount()` calls. For example, `new Hono().basePath('/api').get('/users', handler)` is omitted rather than incorrectly reported as `/users`.
+This is a static route graph, not a runtime interpreter. `route(prefix, child)` copies the child's routes as they exist at that call and does not apply the child prefix to later parent routes. `basePath()` creates a new view that shares the same route table, so only later registrations on that view receive the prefix.
 
-`route(prefix, child)` returns the parent app, so subsequent parent routes are discovered without inheriting the mount prefix. Routes declared separately on a child app are still local definitions, not resolved mount contexts. Do not rely on this version for effective URLs of mounted child applications.
-
-Cross-file routers, constant path evaluation, `all()` / `on()` discovery, and validator/schema metadata are not implemented. Caching is project-wide; file-level incremental analysis is a later milestone.
+Dynamic prefixes, unresolved routers, and external `mount()` remain unresolved rather than guessed. `all()` / `on()` discovery, constant evaluation, and validator/schema metadata are not implemented. Caching is project-wide; file-level incremental analysis is a later milestone.
 
 ## Architecture
 
@@ -105,7 +104,7 @@ Launch the development IDE:
 gradle runIde
 ```
 
-Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements.
+Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, composed `basePath()` and `.route()` prefixes, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements.
 
 For interactive verification, open [examples/smoke](examples/smoke) in WebStorm; its README lists the three expected paths and navigation checks. This is separate from automated PSI/provider tests.
 

@@ -52,6 +52,11 @@ internal object HonoFileDiagnostics {
             appendLine("Project model routes in file: ${countOrError {
                 HonoProjectModel.endpointGroups(project).filter { it.file.virtualFile == file }.sumOf { it.endpoints.size }
             }}")
+            appendLine("Mounted routes in file: ${countOrError {
+                HonoProjectModel.endpointGroups(project)
+                    .filter { it.file.virtualFile == file }
+                    .sumOf { group -> group.endpoints.count { endpoint -> endpoint.path != localPath(endpoint) } }
+            }}")
             appendLine("Constructors (up to 10):")
             PsiTreeUtil.findChildrenOfType(psiFile, JSNewExpression::class.java).take(10).forEach { expression ->
                 val reference = expression.methodExpression as? JSReferenceExpression ?: return@forEach
@@ -72,6 +77,11 @@ internal object HonoFileDiagnostics {
                     "target=${endpoint.target.javaClass.simpleName} ${endpoint.target.textRange}, offset=${endpoint.target.textOffset}")
             }
         }
+    }
+
+    private fun localPath(endpoint: HonoEndpoint): String? {
+        val literal = endpoint.target as? com.intellij.lang.javascript.psi.JSLiteralExpression ?: return null
+        return literal.stringValue
     }
 
     private fun countOrError(block: () -> Int): String = try {

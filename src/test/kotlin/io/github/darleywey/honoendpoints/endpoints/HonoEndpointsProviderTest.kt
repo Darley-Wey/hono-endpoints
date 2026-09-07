@@ -10,6 +10,8 @@ import com.intellij.lang.javascript.psi.resolve.JSResolveUtil
 import com.intellij.microservices.endpoints.EndpointsProvider
 import com.intellij.microservices.endpoints.ExternalEndpointsFilter
 import com.intellij.microservices.endpoints.ModuleEndpointsFilter
+import com.intellij.microservices.oas.OasHttpMethod
+import com.intellij.microservices.url.UrlPath
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.psi.PsiElementResolveResult
 import com.intellij.psi.ResolveResult
@@ -126,5 +128,29 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
             assertEquals("'${endpoint.path}'", provider.getNavigationElement(group, endpoint).text)
             assertSame(endpoint.source, provider.getDocumentationElement(group, endpoint))
         }
+    }
+
+    fun testUrlTargetInfoContainsHostPortAndScheme() {
+        myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'; new Hono().get('/hello', handler)")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val target = provider.getUrlTargetInfo(group, provider.getEndpoints(group).single()).single()
+        assertEquals(listOf("http", "https"), target.schemes)
+        assertEquals(setOf("get"), target.methods)
+        assertEquals(UrlPath.fromExactString("/hello"), target.path)
+        assertTrue(target.resolveToPsiElement() is JSLiteralExpression)
+    }
+
+    fun testOpenApiSpecificationShowsPathAndMethod() {
+        myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'; new Hono().post('/items', handler)")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val spec = provider.getOpenApiSpecification(group, provider.getEndpoints(group).single())
+        val path = spec.paths.single()
+        assertEquals("/items", path.path)
+        assertEquals(OasHttpMethod.POST, path.operations.single().method)
+        assertEquals("POST /items", path.operations.single().summary)
     }
 }

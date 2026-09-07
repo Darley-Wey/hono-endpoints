@@ -19,6 +19,7 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Rejects shadowed constructors, unrelated imports, type-only imports, and unsupported default imports
 - Supports local router aliases, method chains, and parent routes after `.route(prefix, child)`
 - Composes static `basePath()` and `.route()` prefixes, including nested and repeated mounts across files
+- Supplies HTTP Client, OpenAPI, and documentation side-panel data from `EndpointsUrlTargetProvider`
 - Caches project results until PSI, project roots, file structure, or indexing state changes
 - Excludes dependency and explicitly excluded sources, but keeps project files also indexed as TypeScript library roots
 - Defers analysis during indexing

@@ -1,12 +1,20 @@
 package io.github.darleywey.honoendpoints.endpoints
 
 import com.intellij.microservices.endpoints.EndpointType
-import com.intellij.microservices.endpoints.HTTP_SERVER_TYPE
 import com.intellij.microservices.endpoints.EndpointsFilter
 import com.intellij.microservices.endpoints.EndpointsProvider
+import com.intellij.microservices.endpoints.EndpointsUrlTargetProvider
 import com.intellij.microservices.endpoints.FrameworkPresentation
+import com.intellij.microservices.endpoints.HTTP_SERVER_TYPE
 import com.intellij.microservices.endpoints.SearchScopeEndpointsFilter
 import com.intellij.microservices.endpoints.presentation.HttpMethodPresentation
+import com.intellij.microservices.oas.OasComponents
+import com.intellij.microservices.oas.OasEndpointPath
+import com.intellij.microservices.oas.OasHttpMethod
+import com.intellij.microservices.oas.OasOperation
+import com.intellij.microservices.oas.OasResponse
+import com.intellij.microservices.oas.OpenApiSpecification
+import com.intellij.microservices.url.UrlTargetInfo
 import com.intellij.navigation.ItemPresentation
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -19,7 +27,9 @@ import io.github.darleywey.honoendpoints.model.HonoEndpointGroup
 import io.github.darleywey.honoendpoints.project.HonoProjectModel
 
 /** Thin JetBrains adapter. Route discovery lives in [HonoProjectModel], not here. */
-class HonoEndpointsProvider : EndpointsProvider<HonoEndpointGroup, HonoEndpoint> {
+class HonoEndpointsProvider :
+    EndpointsUrlTargetProvider<HonoEndpointGroup, HonoEndpoint> {
+
     override val endpointType: EndpointType = HTTP_SERVER_TYPE
     override val presentation = FrameworkPresentation("Hono", "Hono", null)
 
@@ -53,4 +63,29 @@ class HonoEndpointsProvider : EndpointsProvider<HonoEndpointGroup, HonoEndpoint>
     override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.target
 
     override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.source
+
+    override fun getUrlTargetInfo(
+        group: HonoEndpointGroup,
+        endpoint: HonoEndpoint,
+    ): Iterable<UrlTargetInfo> = listOf(HonoUrlTargetInfo(endpoint))
+
+    override fun getOpenApiSpecification(
+        group: HonoEndpointGroup,
+        endpoint: HonoEndpoint,
+    ): OpenApiSpecification {
+        val method = OasHttpMethod.entries.first { it.methodName.equals(endpoint.method, ignoreCase = true) }
+        val operation = OasOperation(
+            method = method,
+            tags = listOf(group.file.name),
+            summary = "${endpoint.method} ${endpoint.path}",
+            description = null,
+            operationId = null,
+            isDeprecated = false,
+            parameters = emptyList(),
+            requestBody = null,
+            responses = listOf(OasResponse("200", "OK", emptyMap(), emptyList())),
+        )
+        val path = OasEndpointPath(endpoint.path, null, listOf(operation))
+        return OpenApiSpecification(listOf(path), OasComponents(emptyMap()), emptyList())
+    }
 }

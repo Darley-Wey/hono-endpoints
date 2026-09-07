@@ -3,6 +3,7 @@ package io.github.darleywey.honoendpoints.diagnostics
 import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
+import com.intellij.lang.javascript.psi.resolve.JSResolveResult
 import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.DumbService
@@ -48,9 +49,16 @@ internal object HonoFileDiagnostics {
             appendLine("Constructors (up to 10):")
             PsiTreeUtil.findChildrenOfType(psiFile, JSNewExpression::class.java).take(10).forEach { expression ->
                 val reference = expression.methodExpression as? JSReferenceExpression ?: return@forEach
-                val resolved = reference.resolve()
+                val results = reference.multiResolve(false)
+                val result = results.singleOrNull()?.takeIf { it.isValidResult }
+                val resolved = result?.element
+                val origin = (result as? JSResolveResult)?.getES6Import()
+                val binding = HonoConstructorResolver.resolveLocalBinding(reference)
                 appendLine("  ${reference.referenceName}: ${resolved?.javaClass?.simpleName ?: "unresolved"}, " +
                     "Hono=${HonoConstructorResolver.isHonoConstructor(reference)}")
+                appendLine("    Resolve results: ${results.size}; result type: ${result?.javaClass?.simpleName ?: "none"}")
+                appendLine("    Import provenance: ${origin?.javaClass?.simpleName ?: "none"}")
+                appendLine("    Local binding: ${binding?.javaClass?.simpleName ?: "unresolved"}")
             }
         }
     }

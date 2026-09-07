@@ -1,7 +1,15 @@
 package io.github.darleywey.honoendpoints.diagnostics
 
+import com.intellij.lang.javascript.psi.JSNewExpression
+import com.intellij.lang.javascript.psi.JSReferenceExpression
+import com.intellij.lang.javascript.psi.ecma6.TypeScriptClass
+import com.intellij.lang.javascript.psi.resolve.JSResolveUtil
 import com.intellij.openapi.actionSystem.ActionManager
 import com.intellij.openapi.actionSystem.ActionUpdateThread
+import com.intellij.psi.PsiElementResolveResult
+import com.intellij.psi.ResolveResult
+import com.intellij.psi.impl.source.resolve.ResolveCache
+import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.DumbModeTestUtils
 import com.intellij.testFramework.IndexingTestUtil
 import com.intellij.testFramework.PsiTestUtil
@@ -32,6 +40,32 @@ class HonoFileDiagnosticsTest : BasePlatformTestCase() {
         } finally {
             PsiTestUtil.removeExcludedRoot(module, file.virtualFile.parent)
         }
+    }
+
+    fun testReportsClassResolutionAndRecoveredBindingWithoutSourceText() {
+        val declaration = myFixture.addFileToProject("node_modules/hono/index.d.ts", "export declare class Hono {}")
+        val target = PsiTreeUtil.findChildOfType(declaration, TypeScriptClass::class.java)!!
+        val file = myFixture.addFileToProject("backend/app.mts", """
+            import { Hono } from 'hono'
+            new Hono().get('/do-not-copy-this-route', () => 'do-not-copy-this-body')
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val reference = PsiTreeUtil.findChildOfType(file, JSNewExpression::class.java)!!.methodExpression as JSReferenceExpression
+        JSResolveUtil.clearResolveCaches(file)
+        JSResolveUtil.resolve(file, reference, ResolveCache.PolyVariantResolver<JSReferenceExpression> { _, _ ->
+            arrayOf<ResolveResult>(PsiElementResolveResult(target))
+        }, false)
+        assertSame(target, reference.resolve())
+
+        val report = HonoFileDiagnostics.collect(project, file.virtualFile)
+        assertTrue(report.contains("File analysis routes: 1"))
+        assertTrue(report.contains("Project model routes in file: 1"))
+        assertTrue(report.contains("Hono: TypeScriptClassImpl, Hono=true"))
+        assertTrue(report.contains("Resolve results: 1; result type: PsiElementResolveResult"))
+        assertTrue(report.contains("Import provenance: none"))
+        assertTrue(report.contains("Local binding: ES6ImportSpecifierImpl"))
+        assertFalse(report.contains("do-not-copy-this-route"))
+        assertFalse(report.contains("do-not-copy-this-body"))
     }
 
     fun testDiagnosticsDeferDuringIndexing() {

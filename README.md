@@ -13,6 +13,7 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Recognizes Hono dependencies in workspace `package.json` files and direct imports in source-only projects
 - Discovers `get`, `post`, `put`, `patch`, `delete`, `options`, and `head` with static string-literal paths
 - Resolves named Hono imports and aliases through JavaScript/TypeScript PSI, including `import { Hono as App }`
+- Recovers scoped value-import bindings when TypeScript resolves a constructor directly to its class declaration, with or without import provenance
 - Supports CommonJS destructuring, including `const { Hono: App } = require('hono')`, while rejecting shadowed `require` calls
 - Rejects shadowed constructors, unrelated imports, type-only imports, and unsupported default imports
 - Supports local router aliases, method chains, and ordinary parent routes after `.route(prefix, child)`
@@ -64,6 +65,7 @@ Source lives under `src/main/kotlin/io/github/darleywey/honoendpoints/`:
 - `model/`: endpoint data classes, independent of the Endpoints API
 - `project/`: project cache and invalidation
 - `endpoints/`: presentation and navigation adapter
+- `diagnostics/`: read-only file indexing and PSI diagnostics
 
 Future `zValidator`, OpenAPI, or schema support should enrich the route model rather than becoming the source of truth for route discovery.
 
@@ -103,7 +105,7 @@ Launch the development IDE:
 gradle runIde
 ```
 
-Tests cover ESM/CommonJS import aliases, shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots and SDK scope filters.
+Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, `.route()` parent semantics, conservative `basePath()` handling, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, and real PSI references seeded with class-target results in the SDK's JavaScript resolution cache.
 
 For interactive verification, open [examples/smoke](examples/smoke) in WebStorm; its README lists the three expected paths and navigation checks. This is separate from automated PSI/provider tests.
 
@@ -117,7 +119,9 @@ gradle test -PlocalIdePath=/path/to/WebStorm.app
 
 Project files can also belong to JavaScript/TypeScript library roots. Discovery uses the project **content** scope and does not reject a file just because it has a library flag. Explicitly excluded directories, dependency-only roots, and `node_modules` remain excluded.
 
-If an expected file is still missing, open it in the editor and use **Find Action → Copy Hono File Diagnostics**. The command copies its index flags, direct-analysis count, project-model count, and constructor PSI kinds to the clipboard. It runs read-only in the background and does not copy source text or handler bodies. The report includes the file path, so review it before sharing.
+If an expected file is still missing, open it in the editor and use **Find Action → Copy Hono File Diagnostics**. The command copies its index flags, direct-analysis count, project-model count, constructor PSI kinds, resolve-result types, import provenance, and local binding kinds to the clipboard. It runs read-only in the background and does not copy source text or handler bodies. The report includes the file path, so review it before sharing.
+
+A `TypeScriptClassImpl` constructor target is supported: the analyzer recovers the original value-import binding through the SDK's lexical scope resolver. A class name or a same-name import elsewhere in the file is not sufficient evidence.
 
 - `File analysis routes > 0`, `Project model routes in file = 0`: investigate file discovery, roots, exclusions, or caching.
 - Both counts are `0`: inspect the constructor resolution details and whether the route syntax is supported.

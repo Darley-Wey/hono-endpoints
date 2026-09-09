@@ -48,16 +48,11 @@ class HonoEndpointsProvider :
 
     override fun getEndpointGroups(project: Project, filter: EndpointsFilter): Iterable<HonoEndpointGroup> {
         val groups = HonoProjectModel.endpointGroups(project)
-        val selected = if (filter is SearchScopeEndpointsFilter) {
+        return if (filter is SearchScopeEndpointsFilter) {
             groups.filter { group -> group.file.virtualFile?.let(filter.contentSearchScope::contains) == true }
         } else {
             groups
         }
-        HonoTsServiceWarmup.warmRouteElements(
-            project,
-            selected.flatMap { group -> group.endpoints }.map { HonoEndpointDocumentation.element(it) },
-        )
-        return selected
     }
 
     override fun getEndpoints(group: HonoEndpointGroup): Iterable<HonoEndpoint> = group.endpoints
@@ -73,11 +68,8 @@ class HonoEndpointsProvider :
 
     override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.target
 
-    override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement {
-        val element = HonoEndpointDocumentation.documentationElement(endpoint)
-        HonoTsServiceWarmup.warmRouteElements(group.file.project, listOf(element))
-        return element
-    }
+    override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement =
+        HonoEndpointDocumentation.documentationElement(endpoint)
 
     override fun getUrlTargetInfo(
         group: HonoEndpointGroup,

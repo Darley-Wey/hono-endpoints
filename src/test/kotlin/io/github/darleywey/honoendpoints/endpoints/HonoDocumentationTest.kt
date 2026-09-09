@@ -97,17 +97,6 @@ class HonoDocumentationTest : BasePlatformTestCase() {
         assertTrue(element is JSReferenceExpression)
     }
 
-    fun testWarmUpIsSkippedInUnitTestModeAndKeepsDiscoveryWorking() {
-        val file = myFixture.addFileToProject("routes.ts", """
-            import { Hono } from 'hono'
-            new Hono().get('/tickets', (context) => 'ok')
-        """.trimIndent())
-        IndexingTestUtil.waitUntilIndexesAreReady(project)
-        val group = provider().getEndpointGroups(project, ExternalEndpointsFilter).single()
-        HonoTsServiceWarmup.warmRouteElements(project, group.endpoints.map { HonoEndpointDocumentation.element(it) })
-        assertSize(1, group.endpoints)
-    }
-
     fun testStaleUrlTargetDoesNotReadInvalidDocumentationPsi() {
         val file = myFixture.addFileToProject("routes.ts", """
             import { Hono } from 'hono'

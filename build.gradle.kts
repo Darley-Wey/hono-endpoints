@@ -1,4 +1,6 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -32,14 +34,19 @@ dependencies {
 }
 
 intellijPlatform {
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
+
     pluginConfiguration {
         id = "io.github.darleywey.hono-endpoints"
         name = "Hono Endpoints"
         version = providers.gradleProperty("pluginVersion")
 
         description = """
-            Native Hono route discovery for the JetBrains Endpoints tool window.
-            Discover Hono HTTP routes, navigate to their source declarations, and resolve composed route paths.
+            Native Hono support for the JetBrains Endpoints tool window.
+            Discover Hono HTTP routes, navigate to source declarations, generate HTTP Client requests,
+            and provide OpenAPI, native JavaScript/TypeScript documentation, and client examples.
         """.trimIndent()
 
         ideaVersion {
@@ -52,9 +59,31 @@ intellijPlatform {
             url = "https://github.com/Darley-Wey"
         }
     }
+
+    pluginVerification {
+        ides {
+            create(IntelliJPlatformType.WebStorm, "2026.2.2")
+        }
+        // Keep API status notices in the report without treating them as incompatibility.
+        failureLevel.set(listOf(
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
+            VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
+            VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            VerifyPluginTask.FailureLevel.NON_EXTENDABLE_API_USAGES,
+            VerifyPluginTask.FailureLevel.PLUGIN_STRUCTURE_WARNINGS,
+            VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
+            VerifyPluginTask.FailureLevel.INVALID_PLUGIN,
+        ))
+    }
 }
 
 tasks {
+    publishPlugin {
+        providers.gradleProperty("releaseArchive").orNull?.let {
+            archiveFile.set(layout.projectDirectory.file(it))
+        }
+    }
+
     test {
         useJUnit()
     }

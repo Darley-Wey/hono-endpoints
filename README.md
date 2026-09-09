@@ -96,19 +96,19 @@ The project targets WebStorm `2026.2.0.1`, uses IntelliJ Platform Gradle Plugin 
 Run the JUnit tests, including real WebStorm JavaScript/TypeScript PSI fixtures:
 
 ```bash
-gradle test
+./gradlew test
 ```
 
 Build the installable plugin ZIP in `build/distributions/`:
 
 ```bash
-gradle buildPlugin
+./gradlew buildPlugin
 ```
 
 Launch the development IDE:
 
 ```bash
-gradle runIde
+./gradlew runIde
 ```
 
 Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, composed `basePath()` and `.route()` prefixes, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements. Documentation tests verify native-panel selection, exact HTTP method reference PSI and offsets, independence from handler shapes, and separation from path navigation and OpenAPI metadata.
@@ -118,8 +118,28 @@ For interactive verification, open [examples/smoke](examples/smoke) in WebStorm;
 To test against an installed IDE instead of downloading the default SDK:
 
 ```bash
-gradle test -PlocalIdePath=/path/to/WebStorm.app
+./gradlew test -PlocalIdePath=/path/to/WebStorm.app
 ```
+
+## Release automation
+
+Pushing a stable version tag such as `v1.0.0` runs tests, builds the ZIP, and verifies it against WebStorm `2026.2.2`. The tag must match `pluginVersion` in `gradle.properties`. Only successful verification enables the two independent publishing jobs:
+
+- GitHub Release: creates a release with generated notes and uploads the verified ZIP. Uses the workflow's built-in GitHub token.
+- JetBrains Marketplace: uploads the same verified ZIP to the default channel using the `PUBLISH_TOKEN` repository secret. It does not rebuild or sign a different archive. Marketplace approval may still be required.
+
+Create a Marketplace access token for the account with permission to update this plugin, then add it in GitHub **Settings → Secrets and variables → Actions → New repository secret**, named `PUBLISH_TOKEN`. Never commit the token.
+
+Marketplace requires the first plugin upload through its website to create the plugin listing. For the first release, download the ZIP from GitHub Release and upload it manually to Marketplace. The Marketplace job will fail until the listing and token are ready; this does not prevent the GitHub Release. Do not rerun the Marketplace upload for a version already uploaded manually. Subsequent version tags publish to both destinations automatically.
+
+After committing and pushing the release changes (including the Gradle wrapper and workflow), publish a matching tag:
+
+```bash
+git tag v1.0.0
+git push origin v1.0.0
+```
+
+Follow progress in **Actions → CI**. Verification reports remain available in the run's artifacts. If just one publishing job fails, rerun that failed job after fixing its cause; do not rerun a successful Marketplace upload for the same version. GitHub Release retries replace the ZIP attached to the existing tag.
 
 ## Troubleshooting missing routes
 

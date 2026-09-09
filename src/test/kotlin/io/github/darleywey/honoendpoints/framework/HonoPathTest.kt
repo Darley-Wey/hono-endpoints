@@ -41,4 +41,19 @@ class HonoPathTest : TestCase() {
         assertEquals("/", HonoPath.merge("", ""))
         assertEquals("/", HonoPath.merge(null, null))
     }
+
+    fun testExtractsParameterNames() {
+        assertEquals(listOf("id"), HonoPath.parameterNames("/users/:id"))
+        assertEquals(listOf("cityCode"), HonoPath.parameterNames("/train/:cityCode"))
+        assertEquals(listOf("id", "item"), HonoPath.parameterNames("/users/:id/items/:item"))
+        assertEquals(listOf("*"), HonoPath.parameterNames("/api/*"))
+        assertEquals(emptyList<String>(), HonoPath.parameterNames("/health"))
+    }
+
+    fun testConvertsHonoParamsToOpenApiPath() {
+        assertEquals("/users/{id}", HonoPath.toOpenApiPath("/users/:id"))
+        assertEquals("/train/{cityCode}", HonoPath.toOpenApiPath("/train/:cityCode"))
+        assertEquals("/api/{*}", HonoPath.toOpenApiPath("/api/*"))
+        assertEquals("/health", HonoPath.toOpenApiPath("/health"))
+    }
 }

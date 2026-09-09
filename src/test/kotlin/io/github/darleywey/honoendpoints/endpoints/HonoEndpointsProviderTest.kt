@@ -1,6 +1,7 @@
 package io.github.darleywey.honoendpoints.endpoints
 
 import com.intellij.lang.ecmascript6.psi.ES6ImportSpecifier
+import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.lang.javascript.psi.JSLiteralExpression
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
@@ -11,6 +12,9 @@ import com.intellij.microservices.endpoints.EndpointsProvider
 import com.intellij.microservices.endpoints.ExternalEndpointsFilter
 import com.intellij.microservices.endpoints.ModuleEndpointsFilter
 import com.intellij.microservices.oas.OasHttpMethod
+import com.intellij.microservices.oas.OasParameterIn
+import com.intellij.microservices.url.HTTP_SCHEMES
+import com.intellij.microservices.url.LOCALHOST
 import com.intellij.microservices.url.UrlPath
 import com.intellij.openapi.roots.ModuleRootManager
 import com.intellij.psi.PsiElementResolveResult
@@ -126,7 +130,7 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
             assertSame(endpoint.target, provider.getNavigationElement(group, endpoint))
             assertTrue(provider.getNavigationElement(group, endpoint) is JSLiteralExpression)
             assertEquals("'${endpoint.path}'", provider.getNavigationElement(group, endpoint).text)
-            assertSame(endpoint.source, provider.getDocumentationElement(group, endpoint))
+            assertSame((endpoint.source as JSCallExpression).methodExpression, provider.getDocumentationElement(group, endpoint))
         }
     }
 
@@ -136,10 +140,13 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
         val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
         val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
         val target = provider.getUrlTargetInfo(group, provider.getEndpoints(group).single()).single()
-        assertEquals(listOf("http", "https"), target.schemes)
-        assertEquals(setOf("get"), target.methods)
+        assertEquals(HTTP_SCHEMES, target.schemes)
+        assertEquals(setOf("GET"), target.methods)
+        assertEquals("$LOCALHOST:3000", (target.authorities.single() as com.intellij.microservices.url.Authority.Exact).text)
         assertEquals(UrlPath.fromExactString("/hello"), target.path)
         assertTrue(target.resolveToPsiElement() is JSLiteralExpression)
+        assertEquals("app.ts", target.source)
+        assertTrue(target.documentationPsiElement is JSReferenceExpression)
     }
 
     fun testOpenApiSpecificationShowsPathAndMethod() {
@@ -152,5 +159,100 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
         assertEquals("/items", path.path)
         assertEquals(OasHttpMethod.POST, path.operations.single().method)
         assertEquals("POST /items", path.operations.single().summary)
+        assertTrue(path.operations.single().parameters.isEmpty())
+    }
+
+    fun testOpenApiSpecificationConvertsPathParameters() {
+        myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'; new Hono().get('/users/:id', handler)")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val spec = provider.getOpenApiSpecification(group, provider.getEndpoints(group).single())
+        val path = spec.paths.single()
+        assertEquals("/users/{id}", path.path)
+        val parameter = path.operations.single().parameters.single()
+        assertEquals("id", parameter.name)
+        assertEquals(OasParameterIn.PATH, parameter.inPlace)
+        assertTrue(parameter.isRequired)
+    }
+
+    fun testDocumentationElementIsRouteCall() {
+        val file = myFixture.addFileToProject("app.ts", """
+            import { Hono } from 'hono'
+            function listUsers() {}
+            new Hono().get('/users', listUsers)
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val endpoint = provider.getEndpoints(group).single()
+        val docs = provider.getDocumentationElement(group, endpoint)
+        assertSame((endpoint.source as JSCallExpression).methodExpression, docs)
+        assertTrue(docs is JSReferenceExpression)
+        assertSame(file, docs.containingFile)
+    }
+
+    fun testDocumentationElementIgnoresInlineHandler() {
+        myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'; new Hono().get('/hello', (c) => c.text('ok'))")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val endpoint = provider.getEndpoints(group).single()
+        val docs = provider.getDocumentationElement(group, endpoint)
+        assertSame((endpoint.source as JSCallExpression).methodExpression, docs)
+        assertTrue(docs is JSReferenceExpression)
+    }
+
+    fun testDocumentationElementDoesNotInspectMiddlewareOrHandler() {
+        val file = myFixture.addFileToProject("app.ts", """
+            import { Hono } from 'hono'
+            function auth() {}
+            function getUser() {}
+            new Hono().get('/users/:id', auth, getUser)
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val endpoint = provider.getEndpoints(group).single()
+        val docs = provider.getDocumentationElement(group, endpoint)
+        assertSame((endpoint.source as JSCallExpression).methodExpression, docs)
+        assertTrue(docs is JSReferenceExpression)
+        assertSame(file, docs.containingFile)
+    }
+
+    fun testNativeDocumentationKeepsOpenApiMetadataSeparate() {
+        val file = myFixture.addFileToProject("ticket/routes.mts", """
+            import { Hono } from 'hono'
+            function ticketRoute(message, code, handle) {
+                return async (c) => handle(c)
+            }
+            const ticketBase = new Hono()
+            export const ticketRoutes = ticketBase
+              /**
+               * @tag Ticket
+               * @summary 票根列表
+               * @description 按类型分页。
+               * 第二行说明。
+               */
+              .post(
+                "/ticket/list",
+                ticketRoute("票根列表暂时不可用", "TICKET_LIST_INTERNAL", ({ body }) => listTickets(body)),
+              )
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val provider = EndpointsProvider.EP_NAME.extensionList.filterIsInstance<HonoEndpointsProvider>().single()
+        val group = provider.getEndpointGroups(project, ExternalEndpointsFilter).single()
+        val endpoint = provider.getEndpoints(group).single()
+        val docs = provider.getDocumentationElement(group, endpoint)
+        assertSame((endpoint.source as JSCallExpression).methodExpression, docs)
+        assertTrue(docs is JSReferenceExpression)
+        assertSame(file, docs.containingFile)
+
+        val spec = provider.getOpenApiSpecification(group, endpoint)
+        assertEquals("/ticket/list", spec.paths.single().path)
+        val operation = spec.paths.single().operations.single()
+        assertEquals("票根列表", operation.summary)
+        assertEquals("按类型分页。\n第二行说明。", operation.description)
+        assertEquals(listOf("Ticket"), operation.tags)
     }
 }

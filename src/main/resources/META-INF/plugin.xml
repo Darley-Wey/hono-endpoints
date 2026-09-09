@@ -13,6 +13,8 @@
 
     <extensions defaultExtensionNs="com.intellij">
         <microservices.endpointsProvider implementation="io.github.darleywey.honoendpoints.endpoints.HonoEndpointsProvider"/>
+        <platform.backend.documentation.psiTargetProvider order="first" implementation="io.github.darleywey.honoendpoints.endpoints.HonoMethodDocumentationTargetProvider"/>
+        <postStartupActivity implementation="io.github.darleywey.honoendpoints.endpoints.HonoStartupWarmup"/>
     </extensions>
 
     <actions>

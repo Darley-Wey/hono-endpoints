@@ -12,7 +12,12 @@ import com.intellij.microservices.oas.OasComponents
 import com.intellij.microservices.oas.OasEndpointPath
 import com.intellij.microservices.oas.OasHttpMethod
 import com.intellij.microservices.oas.OasOperation
+import com.intellij.microservices.oas.OasParameter
+import com.intellij.microservices.oas.OasParameterIn
+import com.intellij.microservices.oas.OasParameterStyle
 import com.intellij.microservices.oas.OasResponse
+import com.intellij.microservices.oas.OasSchema
+import com.intellij.microservices.oas.OasSchemaType
 import com.intellij.microservices.oas.OpenApiSpecification
 import com.intellij.microservices.url.UrlTargetInfo
 import com.intellij.navigation.ItemPresentation
@@ -22,6 +27,7 @@ import com.intellij.openapi.util.ModificationTracker
 import com.intellij.psi.PsiElement
 import com.intellij.psi.util.PsiModificationTracker
 import io.github.darleywey.honoendpoints.framework.HonoFrameworkDetector
+import io.github.darleywey.honoendpoints.framework.HonoPath
 import io.github.darleywey.honoendpoints.model.HonoEndpoint
 import io.github.darleywey.honoendpoints.model.HonoEndpointGroup
 import io.github.darleywey.honoendpoints.project.HonoProjectModel
@@ -42,11 +48,16 @@ class HonoEndpointsProvider :
 
     override fun getEndpointGroups(project: Project, filter: EndpointsFilter): Iterable<HonoEndpointGroup> {
         val groups = HonoProjectModel.endpointGroups(project)
-        return if (filter is SearchScopeEndpointsFilter) {
+        val selected = if (filter is SearchScopeEndpointsFilter) {
             groups.filter { group -> group.file.virtualFile?.let(filter.contentSearchScope::contains) == true }
         } else {
             groups
         }
+        HonoTsServiceWarmup.warmRouteElements(
+            project,
+            selected.flatMap { group -> group.endpoints }.map { HonoEndpointDocumentation.element(it) },
+        )
+        return selected
     }
 
     override fun getEndpoints(group: HonoEndpointGroup): Iterable<HonoEndpoint> = group.endpoints
@@ -62,7 +73,11 @@ class HonoEndpointsProvider :
 
     override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.target
 
-    override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.source
+    override fun getDocumentationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement {
+        val element = HonoEndpointDocumentation.documentationElement(endpoint)
+        HonoTsServiceWarmup.warmRouteElements(group.file.project, listOf(element))
+        return element
+    }
 
     override fun getUrlTargetInfo(
         group: HonoEndpointGroup,
@@ -74,18 +89,36 @@ class HonoEndpointsProvider :
         endpoint: HonoEndpoint,
     ): OpenApiSpecification {
         val method = OasHttpMethod.entries.first { it.methodName.equals(endpoint.method, ignoreCase = true) }
+        val docs = HonoOpenApiMetadata.jsDoc(endpoint)
+        val parameters = HonoPath.parameterNames(endpoint.path).map { name ->
+            OasParameter(
+                name,
+                OasParameterIn.PATH,
+                null,
+                true,
+                false,
+                OasSchema(OasSchemaType.STRING),
+                OasParameterStyle.SIMPLE,
+            )
+        }
+        val tags = docs?.tags
+            ?.filter { it.first.equals("tag", ignoreCase = true) }
+            ?.map { it.second }
+            ?.filter { it.isNotBlank() }
+            .orEmpty()
+            .ifEmpty { listOf(group.file.name) }
         val operation = OasOperation(
             method = method,
-            tags = listOf(group.file.name),
-            summary = "${endpoint.method} ${endpoint.path}",
-            description = null,
+            tags = tags,
+            summary = docs?.summary ?: "${endpoint.method} ${endpoint.path}",
+            description = docs?.description,
             operationId = null,
             isDeprecated = false,
-            parameters = emptyList(),
+            parameters = parameters,
             requestBody = null,
             responses = listOf(OasResponse("200", "OK", emptyMap(), emptyList())),
         )
-        val path = OasEndpointPath(endpoint.path, null, listOf(operation))
+        val path = OasEndpointPath(HonoPath.toOpenApiPath(endpoint.path), null, listOf(operation))
         return OpenApiSpecification(listOf(path), OasComponents(emptyMap()), emptyList())
     }
 }

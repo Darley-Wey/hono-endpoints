@@ -20,6 +20,12 @@ The plugin is implemented in Kotlin and keeps Hono analysis separate from the Je
 - Supports local router aliases, method chains, and parent routes after `.route(prefix, child)`
 - Composes static `basePath()` and `.route()` prefixes, including nested and repeated mounts across files
 - Supplies HTTP Client, OpenAPI, and documentation side-panel data from `EndpointsUrlTargetProvider`
+- HTTP Client uses SDK scheme constants and uppercase methods so the built-in request tab can generate a runnable request
+- OpenAPI extracts JSDoc `@summary` / `@description` / `@tag` and converts Hono `:id` and `*` segments into path parameters
+- Documentation uses the IDE's native JS/TS Quick Documentation component for syntax-highlighted signatures, standard JSDoc, and source navigation
+- Documentation returns the route's HTTP method reference (`.get`, `.post`, ...) to native Quick Documentation, the same target the editor hover uses on the method; no handler resolution, custom HTML, or signature rewriting
+- Sends best-effort TypeScript quickinfo requests on project open and route selection; startup discovery uses cancellable read actions that yield to IDE writes, and service waits run on a bounded background queue without a read lock
+- Retries failed warm-up on later discovery or selection requests with a cooldown and logs outcomes under "Hono warmup" in idea.log; unavailable quickinfo is reported once per file, and cancellation is not counted as a failed attempt
 - Caches project results until PSI, project roots, file structure, or indexing state changes
 - Excludes dependency and explicitly excluded sources, but keeps project files also indexed as TypeScript library roots
 - Defers analysis during indexing
@@ -41,6 +47,8 @@ app.get('/users/:id', getUser)
 This is a static route graph, not a runtime interpreter. `route(prefix, child)` copies the child's routes as they exist at that call and does not apply the child prefix to later parent routes. `basePath()` creates a new view that shares the same route table, so only later registrations on that view receive the prefix.
 
 Dynamic prefixes, unresolved routers, and external `mount()` remain unresolved rather than guessed. `all()` / `on()` discovery, constant evaluation, and validator/schema metadata are not implemented. Caching is project-wide; file-level incremental analysis is a later milestone.
+
+The Documentation tab uses the same JS/TS Quick Documentation as hovering the route's HTTP method (`.get`, `.post`) in the editor. The plugin passes the method-reference PSI directly to the IDE without resolving handlers. For Endpoints requests, it restores the method identifier as the original call-site context before delegating to the native documentation provider chain. This lets the IDE select the call signature instead of documenting only the method property type; editor requests with existing context are unchanged. Resolution of that reference goes through the TypeScript language service under a short timeout; until that service is running the IDE falls back to local index resolution and renders a generic overload. The plugin therefore boots the service by sending the same quickinfo requests for discovered routes in the background, to reduce cold-service fallbacks. A successful request does not by itself guarantee that the panel renders the same signature as editor hover. Signature layout, highlighting, and wrapping are controlled by the IDE; the plugin does not reformat or truncate the signature. No OpenAPI middleware is required. Route-level OpenAPI tags do not replace the route call's documentation target.
 
 ## Architecture
 
@@ -105,7 +113,7 @@ Launch the development IDE:
 gradle runIde
 ```
 
-Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, composed `basePath()` and `.route()` prefixes, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements.
+Tests cover ESM/CommonJS import aliases, class-target reference results, nested shadowing, composed `basePath()` and `.route()` prefixes, source navigation targets, cache reuse and invalidation, file creation/deletion, excluded roots, library/content overlaps, source-only projects, and recovery after indexing. Provider integration tests check content-only projects without source roots, SDK scope filters, real PSI references seeded with class-target results in the SDK's JavaScript resolution cache, and navigation offsets anchored to path-literal PSI elements. Documentation tests verify native-panel selection, exact HTTP method reference PSI and offsets, independence from handler shapes, and separation from path navigation and OpenAPI metadata. Concurrency tests exercise the production warmup scheduler, including read cancellation and retry when a UI write is pending, service waits outside read locks and the UI thread, cancellation before dispatch, and native-method PSI from the startup scan.
 
 For interactive verification, open [examples/smoke](examples/smoke) in WebStorm; its README lists the three expected paths and navigation checks. This is separate from automated PSI/provider tests.
 

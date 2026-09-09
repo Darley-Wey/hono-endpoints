@@ -170,7 +170,10 @@ class HonoNavigationTest : BasePlatformTestCase() {
             assertEquals("Wrong navigation offset for ${endpoint.method} ${endpoint.path}", expectedOffset, descriptor.offset)
             val document = PsiDocumentManager.getInstance(project).getDocument(file)!!
             assertEquals(document.getLineNumber(expectedOffset), document.getLineNumber(descriptor.offset))
-            assertSame(endpoint.source, provider.getDocumentationElement(group, endpoint))
+            val docs = provider.getDocumentationElement(group, endpoint)
+            assertNotSame(endpoint.target, docs)
+            assertTrue(docs.isValid)
+            assertSame(file, docs.containingFile)
         } finally {
             descriptor.dispose()
         }

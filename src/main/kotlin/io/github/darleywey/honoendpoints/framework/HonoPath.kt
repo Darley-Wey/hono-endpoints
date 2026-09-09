@@ -28,4 +28,26 @@ object HonoPath {
         }
         return "$prefix$base$extra"
     }
+
+    fun parameterNames(path: String): List<String> =
+        path.split('/').mapNotNull { segment ->
+            when {
+                segment.startsWith(":") && segment.length > 1 ->
+                    segment.drop(1).takeWhile { it != '{' && it != '?' }.ifEmpty { null }
+                segment == "*" -> "*"
+                segment.startsWith("*") && segment.length > 1 -> segment.drop(1)
+                else -> null
+            }
+        }
+
+    fun toOpenApiPath(path: String): String =
+        path.split('/').joinToString("/") { segment ->
+            when {
+                segment.startsWith(":") && segment.length > 1 ->
+                    "{${segment.drop(1).takeWhile { it != '{' && it != '?' }}}"
+                segment == "*" -> "{*}"
+                segment.startsWith("*") && segment.length > 1 -> "{${segment.drop(1)}}"
+                else -> segment
+            }
+        }
 }

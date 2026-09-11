@@ -1,0 +1,25 @@
+<idea-plugin>
+    <id>io.github.darleywey.hono-endpoints</id>
+    <name>Hono Endpoints</name>
+    <vendor url="https://github.com/Darley-Wey">Darley-Wey</vendor>
+
+    <description><![CDATA[
+        Native Hono route discovery for the JetBrains Endpoints tool window.
+    ]]></description>
+
+    <depends>com.intellij.modules.platform</depends>
+    <depends>JavaScript</depends>
+    <depends>com.intellij.modules.microservices</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <microservices.endpointsProvider implementation="io.github.darleywey.honoendpoints.endpoints.HonoEndpointsProvider"/>
+        <platform.backend.documentation.psiTargetProvider order="first" implementation="io.github.darleywey.honoendpoints.endpoints.HonoMethodDocumentationTargetProvider"/>
+    </extensions>
+
+    <actions>
+        <action id="io.github.darleywey.honoendpoints.diagnostics.CopyFileDiagnostics"
+                class="io.github.darleywey.honoendpoints.diagnostics.CopyHonoFileDiagnosticsAction"
+                text="Copy Hono File Diagnostics"
+                description="Copy the current file's index flags and route counts without source text"/>
+    </actions>
+</idea-plugin>

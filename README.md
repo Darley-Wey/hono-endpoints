@@ -77,9 +77,7 @@ Future `zValidator`, OpenAPI, or schema support should enrich the route model ra
 
 ## Next milestones
 
-- Build a route graph with router definitions and mount contexts
-- Resolve cross-file `route()` composition and propagate `basePath()` prefixes
-- Support imported routers across files and constant paths
+- Evaluate constant path expressions
 - Add `all()` and `on()` endpoint expansion
 - Add file-level caches and incremental graph updates
 - Add request metadata contributors for `zValidator` and Standard Schema validators

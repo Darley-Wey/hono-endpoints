@@ -58,7 +58,7 @@ internal class HonoRouteGraphBuilder(private val resolver: HonoRouterResolver) {
         val roots = allRouters.filter { it !in mountedChildren }.ifEmpty { allRouters }
         val results = linkedMapOf<EndpointKey, HonoEndpoint>()
         for (root in roots) {
-            expand(root, "/", null, null, byRouter, mountsByParent, mutableSetOf(), results)
+            expand(root, "/", false, null, null, byRouter, mountsByParent, mutableSetOf(), results)
         }
         return results.values.toList()
     }
@@ -66,6 +66,7 @@ internal class HonoRouteGraphBuilder(private val resolver: HonoRouterResolver) {
     private fun expand(
         router: HonoRouter,
         inherited: String,
+        mounted: Boolean,
         snapshotFile: PsiFile?,
         snapshotOffset: Int?,
         byRouter: Map<HonoRouter, List<HonoRouteDefinition>>,
@@ -84,7 +85,7 @@ internal class HonoRouteGraphBuilder(private val resolver: HonoRouterResolver) {
                 val path = HonoPath.merge(inherited, definition.view.basePath, definition.localPath)
                 results.putIfAbsent(
                     EndpointKey(definition.method, path, definition.source),
-                    HonoEndpoint(definition.method, path, definition.source, definition.target),
+                    HonoEndpoint(definition.method, path, definition.source, definition.target, mounted),
                 )
             }
             for (mount in mountsByParent[router].orEmpty()) {
@@ -94,6 +95,7 @@ internal class HonoRouteGraphBuilder(private val resolver: HonoRouterResolver) {
                 expand(
                     mount.child,
                     HonoPath.merge(inherited, mount.parent.basePath, mount.prefix),
+                    true,
                     mount.source.containingFile,
                     mount.source.textRange.endOffset,
                     byRouter,

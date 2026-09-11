@@ -24,6 +24,9 @@ import com.intellij.psi.util.PsiModificationTracker
 object HonoFrameworkDetector {
     private val PRESENT_KEY = Key.create<CachedValue<Boolean>>("hono.framework.present")
     private val IMPORTS_KEY = Key.create<CachedValue<Boolean>>("hono.framework.imports")
+    private val HONO_IMPORT = Regex(
+        """(?:\bfrom\b|\brequire\b|\bimport\b)\s*\(?\s*(['"])(?:hono(?:/[^'"]*)?|jsr:@hono/hono(?:/[^'"]*)?)\1""",
+    )
     private val DEPENDENCY_SECTIONS = listOf(
         "dependencies", "devDependencies", "peerDependencies", "optionalDependencies",
     )
@@ -45,16 +48,23 @@ object HonoFrameworkDetector {
 
     private fun mayImportHono(project: Project): Boolean {
         val fileIndex = ProjectRootManager.getInstance(project).fileIndex
+        val psiManager = PsiManager.getInstance(project)
         // This index hit is an availability hint only; the analyzer still proves constructor origin.
         return !PsiSearchHelper.getInstance(project).processCandidateFilesForText(
             ProjectScope.getContentScope(project), UsageSearchContext.IN_STRINGS, true, "hono",
         ) { file ->
             ProgressManager.checkCanceled()
-            val candidate = file.extension in HonoSymbols.SOURCE_EXTENSIONS &&
-                fileIndex.isInContent(file) && !fileIndex.isExcluded(file) && "/node_modules/" !in file.path
-            !candidate
+            if (file.extension !in HonoSymbols.SOURCE_EXTENSIONS ||
+                !fileIndex.isInContent(file) || fileIndex.isExcluded(file) || "/node_modules/" in file.path
+            ) {
+                return@processCandidateFilesForText true
+            }
+            val source = psiManager.findFile(file)?.text ?: return@processCandidateFilesForText true
+            !looksLikeHonoImport(source)
         }
     }
+
+    internal fun looksLikeHonoImport(source: String): Boolean = HONO_IMPORT.containsMatchIn(source)
 
     private fun detect(project: Project): CachedValueProvider.Result<Boolean> {
         val dependencies = mutableListOf<Any>(

@@ -25,7 +25,6 @@ import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.util.ModificationTracker
 import com.intellij.psi.PsiElement
-import com.intellij.psi.util.PsiModificationTracker
 import io.github.darleywey.honoendpoints.framework.HonoFrameworkDetector
 import io.github.darleywey.honoendpoints.framework.HonoPath
 import io.github.darleywey.honoendpoints.model.HonoEndpoint
@@ -64,7 +63,7 @@ class HonoEndpointsProvider :
         HttpMethodPresentation(endpoint.path, endpoint.method, group.file.name, null)
 
     override fun getModificationTracker(project: Project): ModificationTracker =
-        PsiModificationTracker.getInstance(project)
+        HonoProjectModel.modificationTracker(project)
 
     override fun getNavigationElement(group: HonoEndpointGroup, endpoint: HonoEndpoint): PsiElement = endpoint.target
 

@@ -114,6 +114,28 @@ class HonoRouteGraphTest : BasePlatformTestCase() {
         assertEquals(listOf("GET /health"), HonoProjectScanner.scanFile(file).map { "${it.method} ${it.path}" })
     }
 
+    fun testMountProvenanceIgnoresBareBasePathAndCountsRootMounts() {
+        myFixture.addFileToProject("src/child.ts", """
+            import { Hono } from 'hono'
+            export const child = new Hono().get('/health', handler)
+        """.trimIndent())
+        val app = myFixture.addFileToProject("src/app.ts", """
+            import { Hono } from 'hono'
+            import { child } from './child.js'
+            new Hono().basePath('/api').get('/ready', handler)
+            new Hono().route('/', child)
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val childEndpoints = HonoProjectScanner.scanProject(project)
+            .single { it.file.virtualFile.path.endsWith("/src/child.ts") }
+            .endpoints
+        assertEquals(listOf("GET /health"), childEndpoints.map { "${it.method} ${it.path}" })
+        assertTrue(childEndpoints.single().mounted)
+        val appEndpoints = HonoProjectScanner.scanFile(app)
+        assertEquals(listOf("GET /api/ready"), appEndpoints.map { "${it.method} ${it.path}" })
+        assertFalse(appEndpoints.single().mounted)
+    }
+
     fun testDynamicMountPrefixIsUnresolved() {
         myFixture.addFileToProject("src/child.ts", """
             import { Hono } from 'hono'

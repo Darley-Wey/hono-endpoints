@@ -75,6 +75,21 @@ class HonoEndpointsProviderTest : BasePlatformTestCase() {
         assertTrue(tracker.modificationCount > before)
     }
 
+    fun testModificationTrackerMatchesProjectModelInvalidation() {
+        val providerTracker = HonoEndpointsProvider().getModificationTracker(project)
+        val modelTracker = HonoProjectModel.modificationTracker(project)
+        assertEquals(modelTracker.modificationCount, providerTracker.modificationCount)
+        val before = providerTracker.modificationCount
+        val directory = myFixture.addFileToProject("generated/app.ts", "export const value = 42").virtualFile.parent
+        PsiTestUtil.addExcludedRoot(module, directory)
+        try {
+            assertTrue(providerTracker.modificationCount > before)
+            assertEquals(modelTracker.modificationCount, providerTracker.modificationCount)
+        } finally {
+            PsiTestUtil.removeExcludedRoot(module, directory)
+        }
+    }
+
     fun testModuleFilterKeepsOnlyItsScope() {
         myFixture.addFileToProject("app.ts", "import { Hono } from 'hono'; new Hono().get('/hello', handler)")
         IndexingTestUtil.waitUntilIndexesAreReady(project)

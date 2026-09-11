@@ -8,4 +8,5 @@ data class HonoEndpoint(
     val path: String,
     val source: PsiElement,
     val target: PsiElement,
+    val mounted: Boolean = false,
 )

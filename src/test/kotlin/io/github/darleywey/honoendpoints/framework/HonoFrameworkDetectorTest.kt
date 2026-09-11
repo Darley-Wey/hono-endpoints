@@ -43,4 +43,19 @@ class HonoFrameworkDetectorTest : TestCase() {
         )
         assertFalse(HonoFrameworkDetector.dependsOnHono(""))
     }
+
+    fun testLooksLikeHonoImportAcceptsModuleSpecifiers() {
+        assertTrue(HonoFrameworkDetector.looksLikeHonoImport("import { Hono } from 'hono'"))
+        assertTrue(HonoFrameworkDetector.looksLikeHonoImport("""import Hono from "hono/tiny""""))
+        assertTrue(HonoFrameworkDetector.looksLikeHonoImport("const { Hono } = require('hono')"))
+        assertTrue(HonoFrameworkDetector.looksLikeHonoImport("const app = await import('hono')"))
+        assertTrue(HonoFrameworkDetector.looksLikeHonoImport("""import { Hono } from "jsr:@hono/hono""""))
+    }
+
+    fun testLooksLikeHonoImportIgnoresUnrelatedStrings() {
+        assertFalse(HonoFrameworkDetector.looksLikeHonoImport("app.get('/hono-smoke', handler)"))
+        assertFalse(HonoFrameworkDetector.looksLikeHonoImport("""const name = "hono""""))
+        assertFalse(HonoFrameworkDetector.looksLikeHonoImport("""import x from "hono-smoke""""))
+        assertFalse(HonoFrameworkDetector.looksLikeHonoImport("require('express')"))
+    }
 }

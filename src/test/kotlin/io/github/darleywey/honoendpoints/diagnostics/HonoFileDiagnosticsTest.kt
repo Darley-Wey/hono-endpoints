@@ -90,6 +90,26 @@ class HonoFileDiagnosticsTest : BasePlatformTestCase() {
         assertFalse(report.contains("handler"))
     }
 
+    fun testMountedRoutesCountMountProvenanceNotPrefixedPaths() {
+        val child = myFixture.addFileToProject("child.ts", """
+            import { Hono } from 'hono'
+            export const child = new Hono().get('/health', handler)
+        """.trimIndent())
+        val app = myFixture.addFileToProject("app.ts", """
+            import { Hono } from 'hono'
+            import { child } from './child'
+            new Hono().basePath('/api').get('/ready', handler)
+            new Hono().route('/', child)
+        """.trimIndent())
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        val appReport = HonoFileDiagnostics.collect(project, app.virtualFile)
+        assertTrue(appReport.contains("File analysis routes: 1"))
+        assertTrue(appReport.contains("Mounted routes in file: 0"))
+        val childReport = HonoFileDiagnostics.collect(project, child.virtualFile)
+        assertTrue(childReport.contains("File analysis routes: 1"))
+        assertTrue(childReport.contains("Mounted routes in file: 1"))
+    }
+
     fun testDiagnosticsDeferDuringIndexing() {
         val file = myFixture.addFileToProject("app.ts", "export const value = 42")
         DumbModeTestUtils.runInDumbModeSynchronously(project) {

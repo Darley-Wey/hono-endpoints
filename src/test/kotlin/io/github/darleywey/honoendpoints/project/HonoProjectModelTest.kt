@@ -92,6 +92,13 @@ class HonoProjectModelTest : BasePlatformTestCase() {
         assertEquals(EndpointsProvider.Status.UNAVAILABLE, provider.getStatus(project))
     }
 
+    fun testUnrelatedHonoStringDoesNotEnableFramework() {
+        myFixture.addFileToProject("app.ts", "export const path = '/hono-smoke'")
+        IndexingTestUtil.waitUntilIndexesAreReady(project)
+        assertFalse(HonoFrameworkDetector.isPresent(project))
+        assertEquals(EndpointsProvider.Status.UNAVAILABLE, HonoEndpointsProvider().getStatus(project))
+    }
+
     fun testDependencyManifestsDoNotEnableHono() {
         myFixture.addFileToProject("node_modules/example/package.json", MANIFEST)
         IndexingTestUtil.waitUntilIndexesAreReady(project)

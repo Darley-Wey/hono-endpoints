@@ -77,20 +77,21 @@ class HonoStoredDocumentationContextTest : BasePlatformTestCase() {
         }
     }
 
-    fun testStoredCallContextDoesNotDistinguishNativeTargetPointers() {
+    fun testDistinctNativePointersStillReadLastStoredCallContext() {
         val (first, second) = configureCalls()
         val shared = sharedDeclaration(first, second)
+        val secondHtml = render(nativeTarget(second, second.referenceNameElement))
         DocumentationManager.storeOriginalElement(project, first.referenceNameElement, shared)
         val firstPointer = nativeTarget(first).createPointer()
         DocumentationManager.storeOriginalElement(project, second.referenceNameElement, shared)
         val secondPointer = nativeTarget(second).createPointer()
 
-        assertEquals("Stored user data is not part of native pointer identity", firstPointer, secondPointer)
         assertFalse(
-            "Explicit call-site context gives the editor distinct pointers",
-            nativeTarget(first, first.referenceNameElement).createPointer() ==
-                nativeTarget(second, second.referenceNameElement).createPointer(),
+            "Separate pointer objects do not imply isolated original context",
+            firstPointer == secondPointer,
         )
+        assertEquals(secondHtml, render(firstPointer.dereference()!!))
+        assertEquals(secondHtml, render(secondPointer.dereference()!!))
     }
 
     fun testStoredOriginalTracksCallPathEdit() {

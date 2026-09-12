@@ -15,6 +15,7 @@ import com.intellij.platform.backend.documentation.AsyncDocumentation
 import com.intellij.platform.backend.documentation.DocumentationData
 import com.intellij.platform.backend.documentation.DocumentationResult
 import com.intellij.platform.backend.documentation.DocumentationTarget
+import com.intellij.platform.backend.documentation.DocumentationLinkHandler
 import com.intellij.platform.backend.documentation.ResolvedTarget
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
@@ -24,6 +25,30 @@ import kotlinx.coroutines.runBlocking
 /** Compares the public adapter with native targets; internal APIs occur only in tests. */
 @Suppress("DEPRECATION")
 class HonoPublicDocumentationTargetTest : BasePlatformTestCase() {
+    fun testLinkHandlerIsRegistered() {
+        assertSize(1, DocumentationLinkHandler.EP_NAME.extensionList.filterIsInstance<HonoDocumentationLinkHandler>())
+    }
+
+    fun testJavaScriptCallToTypeScriptDeclarationKeepsNativeLanguageSelection() {
+        myFixture.addFileToProject("api.d.ts", """
+            export interface HandlerInterface {
+                (path: "/ticket/list", handler: (value: string) => string): { value: string };
+            }
+            export declare const app: { post: HandlerInterface };
+        """.trimIndent())
+        myFixture.configureByText("imported.js", """
+            import { app } from "./api";
+            app.post("/ticket/list", value => value);
+        """.trimIndent())
+        val reference = references().single()
+        val resolved = reference.resolve()!!
+        assertFalse("Fixture must cross language boundaries", reference.language == resolved.language)
+        val expected = render(nativeTarget(reference))
+        assertNotNull(expected)
+        assertTrue(expected!!.contains("handler:"))
+        assertEquals(expected, render(adapter(reference)))
+    }
+
     fun testGenericCallMatchesCompleteNativeDocumentation() {
         myFixture.configureByText("generic.ts", """
             interface HandlerInterface {

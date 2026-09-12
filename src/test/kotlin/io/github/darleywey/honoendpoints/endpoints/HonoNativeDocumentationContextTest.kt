@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import com.intellij.lang.documentation.psi.psiDocumentationTargets
 import com.intellij.platform.backend.documentation.DocumentationTarget
 import com.intellij.platform.backend.documentation.DocumentationData
+import com.intellij.platform.backend.documentation.AsyncDocumentation
 import com.intellij.platform.backend.documentation.PsiDocumentationTargetProvider
 import com.intellij.lang.javascript.psi.JSCallExpression
 import io.github.darleywey.honoendpoints.model.HonoEndpoint
@@ -37,6 +38,7 @@ class HonoNativeDocumentationContextTest : BasePlatformTestCase() {
         assertTrue(editor.contains("handler:"))
         val input = HonoEndpointDocumentation.documentationElement(endpoint)
         assertSame(reference, input)
+        assertTrue(psiDocumentationTargets(reference, null).single() is HonoDocumentationTarget)
         assertEquals(editor, html(null))
         assertEquals(editor, html(original))
         val pointer = psiDocumentationTargets(reference, null).single().createPointer()
@@ -92,6 +94,8 @@ class HonoNativeDocumentationContextTest : BasePlatformTestCase() {
     // Plain JUnit does not install the coroutine Job required by native documentation.
     @Suppress("DEPRECATION")
     private fun render(target: DocumentationTarget): String = runBlocking {
-        blockingContext { (target.computeDocumentation() as DocumentationData).html }
+        val result = blockingContext { target.computeDocumentation() }
+        val completed = if (result is AsyncDocumentation) result.supplier() else result
+        (completed as DocumentationData).html
     }
 }

@@ -1,4 +1,5 @@
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
+import org.gradle.jvm.tasks.Jar
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.tasks.VerifyPluginTask
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
@@ -64,11 +65,12 @@ intellijPlatform {
         ides {
             create(IntelliJPlatformType.WebStorm, "2026.2.2")
         }
-        // Keep API status notices in the report without treating them as incompatibility.
+        // Marketplace rejects internal API usage; enforce the same boundary in CI.
         failureLevel.set(listOf(
             VerifyPluginTask.FailureLevel.COMPATIBILITY_WARNINGS,
             VerifyPluginTask.FailureLevel.COMPATIBILITY_PROBLEMS,
             VerifyPluginTask.FailureLevel.OVERRIDE_ONLY_API_USAGES,
+            VerifyPluginTask.FailureLevel.INTERNAL_API_USAGES,
             VerifyPluginTask.FailureLevel.NON_EXTENDABLE_API_USAGES,
             VerifyPluginTask.FailureLevel.PLUGIN_STRUCTURE_WARNINGS,
             VerifyPluginTask.FailureLevel.MISSING_DEPENDENCIES,
@@ -78,6 +80,10 @@ intellijPlatform {
 }
 
 tasks {
+    withType<Jar>().configureEach {
+        manifest.attributes["Implementation-Version"] = project.version.toString()
+    }
+
     publishPlugin {
         providers.gradleProperty("releaseArchive").orNull?.let {
             archiveFile.set(layout.projectDirectory.file(it))

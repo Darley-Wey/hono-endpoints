@@ -1,10 +1,8 @@
 package io.github.darleywey.honoendpoints.diagnostics
 
-import com.intellij.ide.plugins.PluginManagerCore
 import com.intellij.lang.javascript.psi.JSNewExpression
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.lang.javascript.psi.resolve.JSResolveResult
-import com.intellij.openapi.extensions.PluginId
 import com.intellij.openapi.progress.ProcessCanceledException
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
@@ -28,7 +26,7 @@ internal object HonoFileDiagnostics {
         val index = ProjectRootManager.getInstance(project).fileIndex
         val scope = ProjectScope.getContentScope(project)
         val psiFile = PsiManager.getInstance(project).findFile(file)
-        val version = PluginManagerCore.getPlugin(PluginId.getId("io.github.darleywey.hono-endpoints"))?.version
+        val version = HonoFileDiagnostics::class.java.getPackage().implementationVersion ?: "development"
         return buildString {
             appendLine("Hono Endpoints: $version")
             appendLine("File: ${file.path}")

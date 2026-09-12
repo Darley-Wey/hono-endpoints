@@ -1,6 +1,8 @@
 package io.github.darleywey.honoendpoints.endpoints
 
-import com.intellij.codeInsight.documentation.DocumentationManager
+import com.intellij.lang.LanguageDocumentation
+import com.intellij.lang.documentation.CompositeDocumentationProvider
+import com.intellij.lang.documentation.DocumentationProvider
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.model.Pointer
 import com.intellij.openapi.application.readAction
@@ -15,7 +17,6 @@ import com.intellij.psi.PsiNamedElement
 import com.intellij.psi.SmartPointerManager
 
 /** Owns a call's context while the language provider owns its documentation content. */
-@Suppress("DEPRECATION")
 internal class HonoDocumentationTarget(
     private val element: PsiElement,
     private val originalElement: PsiElement?,
@@ -51,7 +52,7 @@ internal class HonoDocumentationTarget(
 
     override fun computeDocumentationHint(): String? {
         val subject = documentationElement()
-        return DocumentationManager.getProviderFromElement(subject, originalElement)
+        return provider(subject)
             .getQuickNavigateInfo(subject, originalElement)
     }
 
@@ -70,7 +71,7 @@ internal class HonoDocumentationTarget(
 
     private fun localDocumentation(): DocumentationResult.Documentation? {
         val subject = documentationElement()
-        val parts = DocumentationManager.getProviderFromElement(subject, originalElement)
+        val parts = provider(subject)
             .getDocumentationParts(subject, originalElement) ?: return null
         ProgressManager.checkCanceled()
         var result = DocumentationResult.documentation(parts.doc)
@@ -82,10 +83,21 @@ internal class HonoDocumentationTarget(
     internal fun linkedElement(link: String): PsiElement? {
         if (!element.isValid || originalElement?.isValid == false) return null
         val subject = documentationElement()
-        return DocumentationManager.getProviderFromElement(subject, originalElement)
+        return provider(subject)
             .getDocumentationElementForLink(subject.manager, link, subject)
     }
 
     private fun documentationElement(): PsiElement =
         (element as? JSReferenceExpression)?.resolve() ?: element
+
+    private fun provider(subject: PsiElement): DocumentationProvider {
+        val file = originalElement?.containingFile ?: subject.containingFile
+        // Match native language precedence for a declaration reached from another
+        // language, while keeping the original element local to this target.
+        val languages = linkedSetOf(subject.language)
+        file?.language?.let(languages::add)
+        file?.viewProvider?.baseLanguage?.let(languages::add)
+        val providers = languages.mapNotNull { LanguageDocumentation.INSTANCE.forLanguage(it) }.distinct()
+        return CompositeDocumentationProvider.wrapProviders(providers)
+    }
 }

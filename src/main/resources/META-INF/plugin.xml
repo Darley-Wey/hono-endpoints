@@ -14,6 +14,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <microservices.endpointsProvider implementation="io.github.darleywey.honoendpoints.endpoints.HonoEndpointsProvider"/>
         <platform.backend.documentation.psiTargetProvider order="first" implementation="io.github.darleywey.honoendpoints.endpoints.HonoMethodDocumentationTargetProvider"/>
+        <platform.backend.documentation.linkHandler implementation="io.github.darleywey.honoendpoints.endpoints.HonoDocumentationLinkHandler"/>
     </extensions>
 
     <actions>

@@ -1,3 +1,6 @@
+// Only this fixture inspects the platform's internal link result implementations.
+@file:Suppress("INVISIBLE_MEMBER", "INVISIBLE_REFERENCE")
+
 package io.github.darleywey.honoendpoints.endpoints
 
 import com.intellij.codeInsight.documentation.DocumentationManager
@@ -39,6 +42,8 @@ class HonoPublicDocumentationTargetTest : BasePlatformTestCase() {
         val (first, second) = configureOverloads()
         val firstHtml = render(nativeTarget(first))
         val secondHtml = render(nativeTarget(second))
+        assertNotNull(firstHtml)
+        assertNotNull(secondHtml)
         assertFalse(firstHtml == secondHtml)
         val firstTarget = adapter(first)
         val secondTarget = adapter(second)
@@ -74,6 +79,7 @@ class HonoPublicDocumentationTargetTest : BasePlatformTestCase() {
         }
         PsiDocumentManager.getInstance(project).commitAllDocuments()
         val expected = render(nativeTarget(references().first()))
+        assertNotNull(expected)
         assertFalse(before == expected)
         assertEquals(expected, finish(pending))
         assertEquals(expected, render(pointer.dereference()!!))
@@ -84,6 +90,7 @@ class HonoPublicDocumentationTargetTest : BasePlatformTestCase() {
         val target = adapter(first)
         val pointer = target.createPointer()
         val pending = compute(target)
+        assertTrue(pending is AsyncDocumentation)
         val range = (first.parent as JSCallExpression).parent.textRange
         WriteCommandAction.runWriteCommandAction(project) {
             myFixture.editor.document.deleteString(range.startOffset, range.endOffset)
@@ -113,7 +120,9 @@ class HonoPublicDocumentationTargetTest : BasePlatformTestCase() {
         val link = links.first { it.contains("Payload") }
         val nativeLinked = (PsiDocumentationLinkHandler().resolveLink(native, link) as ResolvedTarget).target
         val linked = (HonoDocumentationLinkHandler().resolveLink(candidate, link) as ResolvedTarget).target
-        assertEquals(render(nativeLinked), render(linked))
+        val expectedLinked = render(nativeLinked)
+        assertNotNull(expectedLinked)
+        assertEquals(expectedLinked, render(linked))
         assertEquals(nativeLinked.computePresentation().presentableText, linked.computePresentation().presentableText)
         val navigation = linked.navigatable as OpenFileDescriptor
         assertEquals(myFixture.file.virtualFile, navigation.file)

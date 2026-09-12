@@ -3,7 +3,7 @@ package io.github.darleywey.honoendpoints.endpoints
 import com.intellij.codeInsight.documentation.DocumentationManager
 import com.intellij.lang.javascript.psi.JSReferenceExpression
 import com.intellij.model.Pointer
-import com.intellij.openapi.application.ReadAction
+import com.intellij.openapi.application.readAction
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.progress.ProgressManager
 import com.intellij.platform.backend.documentation.DocumentationResult
@@ -61,7 +61,7 @@ internal class HonoDocumentationTarget(
         // The asynchronous callback captures pointers, so a pending request follows
         // edits and can disappear when its call site is deleted.
         return DocumentationResult.asyncDocumentation {
-            ReadAction.compute<DocumentationResult.Documentation?, RuntimeException> {
+            readAction {
                 ProgressManager.checkCanceled()
                 saved.dereference()?.localDocumentation()
             }

@@ -38,7 +38,7 @@ jobs:
           gradle-version: '9.7.0'
 
       - name: Build, test, package, and verify plugin
-        run: ./gradlew test buildPlugin verifyPlugin verifyPluginProjectConfiguration --console=plain
+        run: ./gradlew test buildPlugin verifyPlugin verifyPluginProjectConfiguration -PplatformVersion=2026.2.2 --console=plain
 
       - name: Upload Plugin Verifier report
         if: ${{ always() }}
@@ -56,11 +56,13 @@ jobs:
           if-no-files-found: error
 
       - name: Upload test report
-        if: ${{ failure() }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v5
         with:
           name: test-report
-          path: build/reports/tests
+          path: |
+            build/reports/tests
+            build/test-results/test/*.xml
           if-no-files-found: ignore
 
   github-release:

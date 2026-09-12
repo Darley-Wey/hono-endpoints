@@ -24,7 +24,7 @@ dependencies {
         if (localIdePath.isPresent) {
             local(localIdePath.get())
         } else {
-            webstorm("2026.2.0.1")
+            webstorm(providers.gradleProperty("platformVersion").getOrElse("2026.2.0.1"))
         }
         bundledPlugin("JavaScript")
         testFramework(TestFrameworkType.Platform)

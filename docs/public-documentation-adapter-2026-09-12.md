@@ -1,6 +1,6 @@
 # Public documentation adapter — 2026-09-12
 
-The Endpoints documentation bridge now uses public APIs and gives each route its own call-site context. The implementation is enabled in `1.0.1-SNAPSHOT`. Cloud verification passed; a live IDE comparison remains pending because the workstation was locked.
+The Endpoints documentation bridge now uses public APIs and gives each route its own call-site context. The implementation is enabled in `1.0.1-SNAPSHOT`. Cloud verification and local plugin loading passed; a live documentation comparison remains pending.
 
 ## Implementation
 
@@ -50,4 +50,6 @@ The ZIP was downloaded from the successful CI run; it was not rebuilt locally. T
 
 These are native PSI and documentation-provider tests, not a live TypeScript-service or mouse-hover test. They cover local generated documentation and PSI links; automatic external-document fetching and relative-image behavior are outside this validation.
 
-The local IDE is IntelliJ IDEA 2026.2.2. Live project validation could not proceed because the computer-use tool reported that the Mac was locked. Installation, real-project hover comparison, and interactive link checks remain pending. This preview has not been uploaded to Marketplace, and cloud compatibility verification is not Marketplace approval.
+The local IDE is IntelliJ IDEA 2026.2.2. After the workstation was unlocked, the runtime log confirmed that `1.0.1-SNAPSHOT` was loaded. The installed JAR has the same SHA-256 as the JAR inside the successful CI archive.
+
+Real-project documentation comparison and interactive link checks remain pending. The computer-use tool repeatedly returned an empty menu instead of the IDEA window, including after a normal IDE restart. This is an automation blocker, not evidence of documentation parity or a plugin failure. This preview has not been uploaded to Marketplace, and cloud compatibility verification is not Marketplace approval.

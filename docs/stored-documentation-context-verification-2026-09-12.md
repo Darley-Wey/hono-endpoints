@@ -1,5 +1,7 @@
 # Stored documentation context verification — 2026-09-12
 
+Follow-up: an independent public-API adapter was subsequently implemented in [Public documentation adapter](public-documentation-adapter-2026-09-12.md). This report records why the shared-storage candidate was rejected.
+
 Assessment: `DocumentationManager.storeOriginalElement(...)` is unsuitable as a replacement for the native documentation bridge. It can restore one call's signature, but calls sharing a declaration overwrite each other's rendering context. The overwrite is reproduced with native TypeScript PSI and documentation targets.
 
 ## Verification setup

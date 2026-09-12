@@ -1,6 +1,10 @@
 # Public documentation adapter — 2026-09-12
 
-The Endpoints documentation bridge now uses public APIs and gives each route its own call-site context. The implementation is enabled in `1.0.1-SNAPSHOT`. Cloud verification and local plugin loading passed; a live documentation comparison remains pending.
+The Endpoints documentation bridge now uses public APIs and gives each route its own call-site context. The implementation shipped in version `1.0.1`.
+
+## Release 1.0.1
+
+Version `1.0.1` was released on 2026-09-12. [GitHub Release v1.0.1](https://github.com/Darley-Wey/hono-endpoints/releases/tag/v1.0.1). CI run [34710740835](https://github.com/Darley-Wey/hono-endpoints/actions/runs/34710740835) passed all three jobs: build (146 tests, zero failures), GitHub Release, and Marketplace publish. The user confirmed live documentation parity in the backend project within IntelliJ IDEA 2026.2.2. The plugin is published to JetBrains Marketplace as version 1.0.1.
 
 ## Implementation
 
@@ -52,4 +56,4 @@ These are native PSI and documentation-provider tests, not a live TypeScript-ser
 
 The local IDE is IntelliJ IDEA 2026.2.2. After the workstation was unlocked, the runtime log confirmed that `1.0.1-SNAPSHOT` was loaded. The installed JAR has the same SHA-256 as the JAR inside the successful CI archive.
 
-Real-project documentation comparison and interactive link checks remain pending. The computer-use tool repeatedly returned an empty menu instead of the IDEA window, including after a normal IDE restart. This is an automation blocker, not evidence of documentation parity or a plugin failure. This preview has not been uploaded to Marketplace, and cloud compatibility verification is not Marketplace approval.
+The user confirmed live documentation parity in the real backend project within IntelliJ IDEA 2026.2.2. The plugin version 1.0.1 is published to JetBrains Marketplace.
